@@ -74,7 +74,7 @@ int main(int argc, char** argv)
 			case 'v': o_verbose = 1; break;
 			case 'u': o_udp = 1; break;
 			case 'd': o_delay = (int)atoi(optarg); break;
-			case 'V': ver();
+			case 'V': ver(); break;
 			case 'h': /* fallthrough */
 			default: usage();
 		}
@@ -129,7 +129,7 @@ int main(int argc, char** argv)
 		}
 		memset(&addr, 0, sizeof(addr));
 		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = *((long*)host->h_addr_list[0]);
+		addr.sin_addr.s_addr = *((in_addr_t*)host->h_addr_list[0]);
 		addr.sin_port = htons(port);
 		if(o_udp || proto == PROTO_UDP) {
 			vprint("hitting udp %s:%u\n", inet_ntoa(addr.sin_addr), port);

@@ -1,0 +1,23 @@
+[Unit]
+Description=TOTP knock server managed by browser extension
+After=network-online.target knock-control-firewall.service
+Requires=knock-control-firewall.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/sbin/knock-control firewall
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/local/sbin/knockd -c /etc/knock-control/knockd.conf
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/run
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

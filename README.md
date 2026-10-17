@@ -1,5 +1,39 @@
 ## knock: A port-knocking implementation
 
+This fork includes **Knock Control**, a controlled emergency access mechanism for
+sensitive services normally blocked from the public internet. It includes a
+Chrome/Firefox extension, mobile QR import, an installable web app, a Linux native
+bridge and an HTTPS controller for server-issued client credentials. Each credential
+has its own port policy. Grants and traffic-based idle timeouts are independent
+for each source IPv4, including clients sharing the same credential. New managed configurations use RFC 6238 TOTP
+(Google Authenticator) and an authenticated UDP confirmation. See
+[setup, protocol and verification instructions in Russian](README_RU.md).
+Legacy `sequence =` and `otp =` formats remain available.
+
+### Motivation
+
+Knock Control can act as a preconfigured emergency entrance (a controlled
+"backdoor") when the usual access method, such as a VPN, is unavailable because
+of a service failure, routing problem, client configuration or network restrictions.
+An authorized client can temporarily reach sensitive SSH, RDP, administration or
+other TCP services that are normally inaccessible from the public internet,
+restore the primary access method, and remove its grant with OFF. Protected
+service traffic refreshes only that source IP's idle timeout; otherwise the grant
+expires automatically. The service retains its normal authentication.
+
+Set up and test this path before an incident. It works independently of the VPN
+as long as the server and the selected knock transport or HTTPS control API
+remain reachable. The current firewall manages services on the host's reachable
+IPv4; services bound only to a VPN address or localhost need additional routing
+or a proxy.
+
+Two clients can import the same profile: with different public IPv4 addresses,
+ON/OFF and idle expiry affect their own grants. Profile settings and revocation
+are shared; changing settings resets all grants of that profile. Devices sharing
+one public IPv4 behind NAT also share one grant. Issue separate credentials when
+independent settings or revocation are required.
+
+
 Copyright (c) 2004, Judd Vinet <jvinet@zeroflux.org>
 
 ### ABOUT  
@@ -38,7 +72,7 @@ can only be accessed after a successful knock sequence.
      22 to Client.
 
 ### EXAMPLE  WITH ONE TIME PASSWORD AND SRC IP PROTECTION
-Traditional knock approach does not protect the system from MITM attack. If the attacker sniffs the traffic and sends the same packet sequence to knockd, he gains access to the system. To avoid this we can change the port sequence after predefined number of seconds, pretty much like Google Authentcator does. However, even in this case, there is a chance, that the attacker will send the same knocks sequence soon after the valid user sent it and thus will gain access to the system. To completely avoid this MITM threat we have to make a random port sequence dependent not only on time of the packets sent, but also on source ip address of the sender. The example below shows the section of knockd config file, that provides exactly this scenario:
+The legacy `otp =` mode below derives changing ports from a decimal time counter and optionally binds a suffix to the source IPv4. It is not RFC 6238 and does not provide complete protection against replay or an active on-path attacker. The new `totp =` mode described in README_RU.md uses standard authenticator codes plus a signed confirmation. The legacy configuration format is:
 
 otp = AAgR%XXx30O$#, 45, 20000, on, tcp, udp, tcp
 
@@ -50,8 +84,9 @@ in this  section
 - on is ip_protection flag (boolean on/off). It specifies if we need additional ports generated based on mix of the key and the sender ip address to validate sender. Only in rear cases where the sender can't know for sure it's public IP address or if internet provider has several public IP addresses which are used on round-robin basis for providing internet access to its customers, this flag should be set to off. In these rear cases only time-based port generation might be used, which is less secure, but better than nothing. 
 - tcp, udp, tcp - protocol sequence. These are the protocols used for every generated port sequence. The number of protocol names defines the number of port numbers derived from the seed. If ip_protection flag is set to on, additional random port numbers are generated based on src ip of a sender. The number and types of these additional ports are the same as the primary ones. In this examples 3 additional port numbers will be generated resulting in total 6 port numbers seqence of these protocols: tcp, udp, tcp, tcp, udp, tcp
 
-A simple bash script knockd.sh is included as a knocking client to illustrate the whole processs
-To build knockd openssl should be installed. Usually "-lssl -lm" linker options is enough to build knockd
+`knockd.sh` now invokes the Python client for the new managed TOTP profile.
+Building knockd requires libpcap and OpenSSL libcrypto development packages.
+Use `scripts/build.sh` or the autotools build above.
 
 ### KNOCKING CLIENTS
 

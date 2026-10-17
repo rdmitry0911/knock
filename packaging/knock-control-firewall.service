@@ -1,0 +1,17 @@
+[Unit]
+Description=Install knock access rules before network configuration
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target
+Wants=network-pre.target
+ConditionPathExists=/etc/knock-control/settings.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/knock-control firewall
+RemainAfterExit=yes
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

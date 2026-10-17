@@ -20,3 +20,6 @@
 /knockd
 /missing
 /stamp-h1
+/dist/
+__pycache__/
+/tests/test_knockd

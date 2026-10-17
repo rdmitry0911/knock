@@ -11,7 +11,7 @@ man_MANS += doc/knockd.1
 sysconf_DATA = knockd.conf
 endif
 
-dist_doc_DATA = README.md TODO ChangeLog COPYING
+dist_doc_DATA = README_RU.md README.md TODO ChangeLog COPYING
 
 knock_SOURCES = src/knock.c
 knockd_SOURCES = src/knockd.c src/list.c src/list.h src/knock_helper_ipt.sh
@@ -21,3 +21,6 @@ knockd_SOURCES = src/knockd.c src/list.c src/list.h src/knock_helper_ipt.sh
 
 EXTRA_DIST = doc/knock.1 doc/knock.1.in doc/knockd.1 doc/knockd.1.in knockd.conf
 CLEANFILES = $(man_MANS)
+
+EXTRA_DIST += $(wildcard controller/*.py extension/*.html extension/*.js extension/*.css extension/*.json packaging/*.service scripts/*.sh scripts/*.py tests/*.c tests/*.py tests/*.mjs)
+EXTRA_DIST += THIRD_PARTY.json $(wildcard controller/vendor/*.py extension/vendor/* extension/*.png extension/*.svg extension/*.webmanifest)

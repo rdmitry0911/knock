@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Knock Control",
+  "version": "2.0.0",
+  "description": "Emergency access to protected services when VPN is unavailable, with server-issued TOTP profiles and per-IP idle timeouts.",
+  "permissions": ["nativeMessaging"],
+  "action": {"default_popup": "popup.html", "default_title": "Knock Control"},
+  "options_ui": {"page": "options.html", "open_in_tab": true},
+  "content_security_policy": {"extension_pages": "script-src 'self'; object-src 'none'"}
+}

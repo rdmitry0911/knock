@@ -182,7 +182,7 @@ PMList *list_sort(PMList *list)
 {
 	char **arr = NULL;
 	PMList *lp;
-	unsigned int arrct;
+	int arrct;
 	int i;
 
 	if(list == NULL) {

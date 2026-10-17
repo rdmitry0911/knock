@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Knock Control</title><link rel="stylesheet" href="style.css"></head>
+<body class="popup"><header><span class="eyebrow">TOTP · PORT KNOCKING</span><h1>Knock Control</h1><p id="server">Загрузка профиля…</p></header>
+<main><section><label>Выданный сервером профиль<select id="profiles"></select></label><p id="state" class="badge">Доступ не проверен</p>
+<label>Код Google Authenticator (необязательно)<input id="code" inputmode="numeric" autocomplete="one-time-code" placeholder="6 цифр или пусто — автоматически" maxlength="6" pattern="[0-9]{6}"></label><p class="muted">Пустое поле использует TOTP локального помощника.</p>
+<div class="actions"><button id="open" class="primary">Вкл</button><button id="close" class="danger">Выкл</button><button id="status">Проверить</button></div>
+<p id="idle" class="muted"></p><p class="muted">«Вкл» отправляет последовательность и подписанное подтверждение. «Выкл» снимает разрешение для моего IP и секрета.</p></section>
+<p id="message" role="status" aria-live="polite"></p><button id="settings" class="wide">Импорт и настройки профилей →</button></main>
+<script type="module" src="popup.js"></script></body></html>
