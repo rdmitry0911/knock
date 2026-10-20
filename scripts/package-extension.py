@@ -15,9 +15,9 @@ for retired in ('chromium', 'firefox'):
         (dist / f'knock-control-{retired}{suffix}').unlink(missing_ok=True)
 source = root / 'extension'
 web_files = ('app.html','app.js','bridge.js','browser-client.js','ice-client.js','profile-codec.js',
-             'transport-config.js','qr.js','sw.js','style.css','app.webmanifest',
-             'icon.svg','icon-180.png','icon-192.png','icon-512.png','vendor/jsQR.js','vendor/jsQR.LICENSE')
-icons = {str(size):f'icon-{size}.png' for size in (48,96,128)}
+             'transport-config.js','qr.js','sw.js','style.css','app.webmanifest','i18n.js','ice-operation.js','_locales',
+             'icon.svg','icon-48.png','icon-180.png','icon-192.png','icon-512.png','vendor/jsQR.js','vendor/jsQR.LICENSE')
+icons = {str(size):f'icon-{size}.png' for size in (16,32,48,96,128)}
 
 def archive_tree(directory, name):
     with zipfile.ZipFile(dist / name, 'w', zipfile.ZIP_DEFLATED) as archive:
@@ -41,7 +41,7 @@ for variant in ('chromium-browser','firefox-mobile','web-app'):
         for name in web_files:
             target = output / name
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source / name, target)
+            shutil.copytree(source / name, target) if (source/name).is_dir() else shutil.copy2(source / name, target)
     else:
         shutil.copytree(source, output, dirs_exist_ok=True)
     shutil.copy2(root / 'THIRD_PARTY.json',output / 'THIRD_PARTY.json')
@@ -52,20 +52,23 @@ for variant in ('chromium-browser','firefox-mobile','web-app'):
         print(output)
         continue
     manifest = json.loads((source / 'manifest.json').read_text())
-    manifest['version'] = '3.0.0'
+    manifest['version'] = '3.1.1'
     manifest['icons'] = icons
     if variant == 'chromium-browser':
-        manifest.update({'permissions':['storage'], 'optional_host_permissions':['https://*/*'],
+        manifest.update({'permissions':['storage','offscreen'], 'optional_host_permissions':['https://*/*'],
             'background':{'service_worker':'background.js','type':'module'},
-            'action':{'default_title':'Knock Control'},
+            'action':{'default_title':'__MSG_extensionName__','default_popup':'popup.html','default_icon':icons},
             'options_ui':{'page':'app.html','open_in_tab':True}})
     elif variant == 'firefox-mobile':
-        # Firefox Android uses an event page and a full tab for camera access.
-        manifest = {'manifest_version':2,'name':'Knock Control Mobile','version':'3.0.0',
+        shutil.copy2(source/'background-firefox.js',output/'background.js')
+        for chromium_file in ('chromium-ice.js','offscreen.js','offscreen.html','background-firefox.js'):
+            (output/chromium_file).unlink(missing_ok=True)
+        # Firefox uses the same popup on desktop and Android; camera import has a full view.
+        manifest = {'manifest_version':2,'name':'__MSG_extensionName__','version':'3.1.1','default_locale':'en',
             'description':manifest['description'],'icons':icons,'permissions':['storage'],
             'optional_permissions':['https://*/*'],
             'background':{'scripts':['background.js'],'type':'module','persistent':False},
-            'browser_action':{'default_title':'Knock Control'},
+            'browser_action':{'default_title':'__MSG_extensionName__','default_popup':'popup.html','default_icon':icons},
             'options_ui':{'page':'app.html','open_in_tab':True},
             'content_security_policy':"script-src 'self'; object-src 'none'",
             'browser_specific_settings':gecko('knock-control-mobile@local',True)}

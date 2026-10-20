@@ -15,6 +15,34 @@ from test_controller import database,ROOT
 
 
 class IceTests(unittest.TestCase):
+    def test_queued_command_keeps_requested_profile_when_selection_changes(self):
+        db,alice,bob=database()
+        bundles=[server.export_bundle(db,ident) for ident in (alice,bob)]
+        codec='data:text/javascript;base64,'+base64.b64encode((ROOT/'extension/profile-codec.js').read_bytes()).decode()
+        source=(ROOT/'extension/browser-client.js').read_text().replace("'./profile-codec.js'",json.dumps(codec))
+        module='data:text/javascript;base64,'+base64.b64encode(source.encode()).decode()
+        script='''import {webcrypto} from 'node:crypto';globalThis.crypto=webcrypto;
+const {dispatch}=await import(MODULE);
+let input='';for await(const chunk of process.stdin)input+=chunk;
+const [alice,bob]=JSON.parse(input),store=new Map();
+globalThis.localStorage={getItem:key=>store.get(key),setItem:(key,value)=>store.set(key,value)};
+globalThis.location={origin:alice.server_url};
+await dispatch({action:'import',bundle:alice});const a=await dispatch({action:'load'});
+await dispatch({action:'import',bundle:bob});const b=await dispatch({action:'load'});
+const pinned=await dispatch({action:'load',key:a.active});
+const proof=await dispatch({action:'ice-proof',key:a.active,operation:'open',source:'192.0.2.7'});
+const current=await dispatch({action:'load'}),updated=await dispatch({action:'load',key:a.active});
+process.stdout.write(JSON.stringify({token:proof.token,pinned:pinned.profile.profile_id,
+current:current.profile.profile_id,activeUnchanged:current.active===b.active,
+aliceUpdated:updated.profile.last_ice_ms>0,bobUntouched:!current.profile.last_ice_ms}));
+'''.replace('MODULE',json.dumps(module))
+        result=json.loads(subprocess.run(['node','--input-type=module','-e',script],input=json.dumps(bundles),text=True,capture_output=True,check=True).stdout)
+        self.assertEqual(result['pinned'],alice)
+        self.assertEqual(result['current'],bob)
+        self.assertTrue(result['activeUnchanged'] and result['aliceUpdated'] and result['bobUntouched'])
+        self.assertEqual(common.verify_ice_token(bundles[0],result['token'],'192.0.2.7')[0],'open')
+        with self.assertRaises(ValueError):common.verify_ice_token(bundles[1],result['token'],'192.0.2.7')
+
     def test_browser_python_token_compatibility_and_binding(self):
         db,ident,_=database();bundle=server.export_bundle(db,ident);now=1700000000;source='192.0.2.7'
         token=common.ice_token(bundle,'open',source,now=now,nonce='00'*16)

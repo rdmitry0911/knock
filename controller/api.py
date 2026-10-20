@@ -17,8 +17,9 @@ APP_TYPES = {
     'style.css':'text/css; charset=utf-8', 'icon.svg':'image/svg+xml',
     **{name:'text/javascript; charset=utf-8' for name in (
         'app.js','bridge.js','browser-client.js','ice-client.js','profile-codec.js','transport-config.js',
-        'qr.js','sw.js','vendor/jsQR.js')},
-    **{f'icon-{size}.png':'image/png' for size in (180,192,512)},
+        'qr.js','sw.js','i18n.js','ice-operation.js','vendor/jsQR.js')},
+    **{f'icon-{size}.png':'image/png' for size in (48,180,192,512)},
+    **{f'_locales/{locale}/messages.json':'application/json; charset=utf-8' for locale in ('en','ru','de','fr','es','pt_BR','zh_CN','ja','ar','hi')},
 }
 
 

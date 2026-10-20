@@ -43,7 +43,7 @@ class EnrollmentTests(unittest.TestCase):
                 self.assertEqual(server.CERT.read_bytes(),saved_cert);self.assertEqual(server.KEY.read_bytes(),saved_key);self.assertEqual(server.CONFIG.read_bytes(),saved_db)
 
     def test_full_profile_round_trip_unicode_and_native_import(self):
-        db,a,_=database();db['profiles'][a]['name']='Телефон Алисы'
+        db,a,_=database();db['profiles'][a]['name']='Alice phone Ω'
         bundle=server.export_bundle(db,a)
         text=qr_codec.enrollment_url(bundle)
         restored=qr_codec.decode_enrollment(text)

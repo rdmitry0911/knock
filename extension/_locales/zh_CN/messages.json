@@ -1,0 +1,350 @@
+{
+  "m_5d6c2b46": {
+    "message": "需要服务器签发的 Knock Control 配置"
+  },
+  "m_83dbae11": {
+    "message": "访问已关闭"
+  },
+  "m_58b104fa": {
+    "message": "访问已开启"
+  },
+  "m_aa539a15": {
+    "message": "访问已关闭。"
+  },
+  "m_755700f3": {
+    "message": "尚未检查访问状态"
+  },
+  "m_e5d83609": {
+    "message": "添加配置"
+  },
+  "m_46dc0362": {
+    "message": "将此页面添加到主屏幕以便快速访问。"
+  },
+  "m_974e8a53": {
+    "message": "附加 TCP 端口"
+  },
+  "m_49245e8e": {
+    "message": "请允许访问此服务器：{origin}"
+  },
+  "m_25939de3": {
+    "message": "允许的 TCP 端口：{ports}。规则：{rules}。最长空闲时间：{seconds} 秒。"
+  },
+  "m_3aeaed6f": {
+    "message": "服务无流量 {seconds} 秒后自动关闭。"
+  },
+  "m_292b282e": {
+    "message": "摄像头不可用，请导入二维码图片。"
+  },
+  "m_46d042c7": {
+    "message": "无法安全连接。请检查网络、HTTPS 证书和浏览器权限。"
+  },
+  "m_66a5f0ca": {
+    "message": "无法通过 STUN 获取公网 IPv4，请手动输入。"
+  },
+  "m_4957159b": {
+    "message": "无法读取此图片"
+  },
+  "m_2b89766f": {
+    "message": "检查状态"
+  },
+  "m_9e507fd8": {
+    "message": "请检查端口范围和超时"
+  },
+  "m_732bdad5": {
+    "message": "正在检查…"
+  },
+  "m_b1827bc8": {
+    "message": "请选择不超过 8 MB 的二维码图片"
+  },
+  "m_550d70a9": {
+    "message": "请选择不超过 32 KiB 的配置文件"
+  },
+  "m_f7366892": {
+    "message": "关闭摄像头"
+  },
+  "m_1d047c51": {
+    "message": "连接设置已保存到此设备。"
+  },
+  "m_3fe23d46": {
+    "message": "连接设置"
+  },
+  "m_227026c0": {
+    "message": "正在关闭访问…"
+  },
+  "m_72223725": {
+    "message": "每次 ON/OFF 时通过 STUN 获取"
+  },
+  "m_af0f01b1": {
+    "message": "VPN 不可用时紧急访问受保护的服务，支持服务器签发的 TOTP 配置和各 IP 独立空闲超时。"
+  },
+  "m_9c9e6775": {
+    "message": "正在开启访问…"
+  },
+  "m_115c6024": {
+    "message": "请输入 Authenticator 的 6 位验证码"
+  },
+  "m_237aef80": {
+    "message": "使用配置中的值"
+  },
+  "m_1adbe8f4": {
+    "message": "ICE 敲门未启动，请允许 WebRTC/UDP 或选择 HTTPS。"
+  },
+  "m_c7afd4f5": {
+    "message": "空闲超时（秒）"
+  },
+  "m_573e0af4": {
+    "message": "导入"
+  },
+  "m_ec6d0d62": {
+    "message": "导入一次，然后按 ON。"
+  },
+  "m_7b946769": {
+    "message": "导入配置"
+  },
+  "m_856adb10": {
+    "message": "请先导入服务器签发的二维码配置"
+  },
+  "m_6e3a78e8": {
+    "message": "请导入服务器签发的二维码配置。"
+  },
+  "m_41e81fe1": {
+    "message": "ICE 敲门参数无效"
+  },
+  "m_d95312b5": {
+    "message": "ICE 敲门签名无效"
+  },
+  "m_b9fae062": {
+    "message": "ICE 请求无效"
+  },
+  "m_264bed2c": {
+    "message": "IP 绑定无效"
+  },
+  "m_a6f49da7": {
+    "message": "IPv4 地址无效"
+  },
+  "m_37f8693": {
+    "message": "STUN 服务器无效"
+  },
+  "m_d155bd45": {
+    "message": "连接设置无效"
+  },
+  "m_7b80d433": {
+    "message": "注册二维码无效"
+  },
+  "m_5b70f016": {
+    "message": "字段 {field} 无效"
+  },
+  "m_80ddcdf3": {
+    "message": "敲门服务器地址无效"
+  },
+  "m_4eea5762": {
+    "message": "配置 ID 无效"
+  },
+  "m_407834ac": {
+    "message": "配置名称无效"
+  },
+  "m_6bece2e7": {
+    "message": "配置密钥无效"
+  },
+  "m_b743d391": {
+    "message": "协议序列无效"
+  },
+  "m_f2f22211": {
+    "message": "请求无效"
+  },
+  "m_fbd2fb06": {
+    "message": "规则列表无效"
+  },
+  "m_cdf1d03c": {
+    "message": "密钥无效"
+  },
+  "m_30c46225": {
+    "message": "传输方式无效"
+  },
+  "m_984b72ce": {
+    "message": "JSON 文件或二维码文本"
+  },
+  "m_51c8f8f6": {
+    "message": "Knock Control"
+  },
+  "m_f1e1bf7": {
+    "message": "覆盖敲门服务器 IPv4"
+  },
+  "m_a00b7d78": {
+    "message": "限制由管理员设置。"
+  },
+  "m_57c40f0f": {
+    "message": "缺少配置设置"
+  },
+  "m_b88a3295": {
+    "message": "缺少服务器证书指纹"
+  },
+  "m_85ef5e1f": {
+    "message": "我的公网 IPv4"
+  },
+  "m_d16bd2f2": {
+    "message": "ON/OFF"
+  },
+  "m_4da33e9e": {
+    "message": "ON/OFF、状态和设置使用 HTTPS。"
+  },
+  "m_3730d9c8": {
+    "message": "ON/OFF：通过 WebRTC ICE 发送 UDP，无需 HTTPS 请求。状态和设置使用 HTTPS。"
+  },
+  "m_c8c3476b": {
+    "message": "打开完整界面"
+  },
+  "m_753b8714": {
+    "message": "打开此配置的网页应用：{url}"
+  },
+  "m_bd9b7e8": {
+    "message": "粘贴服务器签发的链接"
+  },
+  "m_9321ca51": {
+    "message": "请按 ON。"
+  },
+  "m_cd17328e": {
+    "message": "配置"
+  },
+  "m_34b263ec": {
+    "message": "配置文件"
+  },
+  "m_49530b62": {
+    "message": "配置已导入，请按 ON。"
+  },
+  "m_4d8c7ef6": {
+    "message": "配置规则，以逗号分隔"
+  },
+  "m_d675456f": {
+    "message": "配置设置"
+  },
+  "m_e0588df3": {
+    "message": "二维码图片"
+  },
+  "m_7b9f19db": {
+    "message": "二维码链接或 JSON"
+  },
+  "m_adbb1abf": {
+    "message": "未找到二维码。请选择清晰完整且包含白色边框的图片。"
+  },
+  "m_a67b9f7e": {
+    "message": "STUN 仅获取您的 IP，不获取密钥或已签名的敲门数据。手动指定公网 IP 可跳过 STUN。ICE 需要 r6 或更新的服务器以及最新配置版本。"
+  },
+  "m_2c11c213": {
+    "message": "用于获取公网 IP 的 STUN 服务器"
+  },
+  "m_cb2c920": {
+    "message": "STUN 服务器格式：stun:主机:端口"
+  },
+  "m_fbd68890": {
+    "message": "保存连接"
+  },
+  "m_e1c3ff30": {
+    "message": "保存到服务器"
+  },
+  "m_b9d8dd7c": {
+    "message": "扫描服务器签发的二维码或选择其图片。"
+  },
+  "m_3a5ba55f": {
+    "message": "使用摄像头扫描"
+  },
+  "m_f269eee6": {
+    "message": "序列已发送"
+  },
+  "m_8aff9210": {
+    "message": "服务器访问"
+  },
+  "m_ae083b85": {
+    "message": "请在连接设置中填写敲门服务器的 IPv4，以使用 ICE。"
+  },
+  "m_e572e3c1": {
+    "message": "设置已保存，请按 ON。"
+  },
+  "m_870ac6d5": {
+    "message": "已发送签名 UDP 敲门 {operation}，未请求服务器响应。"
+  },
+  "m_ca9e287a": {
+    "message": "需要 TCP 端口或命名规则"
+  },
+  "m_d2dd13d9": {
+    "message": "Authenticator 验证码无效或已过期"
+  },
+  "m_f2ffc9": {
+    "message": "二维码地址与配置服务器不匹配"
+  },
+  "m_dd1501da": {
+    "message": "二维码或配置文件过大"
+  },
+  "m_7f9a4b00": {
+    "message": "管理员仅允许此配置使用 TCP/UDP 客户端"
+  },
+  "m_dbbca3cd": {
+    "message": "本地配置存储已损坏"
+  },
+  "m_9e7ee36a": {
+    "message": "响应属于其他配置"
+  },
+  "m_abf214c6": {
+    "message": "服务器必须使用 HTTPS"
+  },
+  "m_f9b9e3bf": {
+    "message": "服务器响应过大"
+  },
+  "m_abd8d76d": {
+    "message": "这是 Authenticator 密钥。请导入完整的 Knock Control 配置二维码。"
+  },
+  "m_e80c5a2f": {
+    "message": "这不是 Knock Control 注册二维码"
+  },
+  "m_69f5ea56": {
+    "message": "此配置属于其他服务器，请打开 {url}"
+  },
+  "m_cc4c7ce4": {
+    "message": "通过 WebRTC ICE 发送 UDP，无需 HTTPS API"
+  },
+  "m_5ba4da28": {
+    "message": "未知操作"
+  },
+  "m_af7c7e84": {
+    "message": "未知配置"
+  },
+  "m_30b74d3": {
+    "message": "不支持的二维码版本"
+  },
+  "m_5f2a0fdf": {
+    "message": "此浏览器不支持 WebRTC"
+  },
+  "m_4b6dacef": {
+    "message": "现在可以使用受保护的服务。"
+  },
+  "m_ada7afdb": {
+    "message": "无"
+  },
+  "m_7fc72fc6": {
+    "message": "ssh_lan,udp_service,ping"
+  },
+  "m_2de77f31": {
+    "message": "扩展未响应"
+  },
+  "m_37f75f9d": {
+    "message": "服务器拒绝了请求"
+  },
+  "extensionName": {
+    "message": "Knock Control"
+  },
+  "extensionDescription": {
+    "message": "VPN 不可用时紧急访问受保护的服务，支持服务器签发的 TOTP 配置和各 IP 独立空闲超时。"
+  },
+  "m_31917eab": {
+    "message": "请导入服务器签发的 JSON 配置。"
+  },
+  "m_719398d6": {
+    "message": "粘贴 JSON 配置"
+  },
+  "m_1bc536a": {
+    "message": "JSON 配置"
+  },
+  "m_d4157397": {
+    "message": "请在桌面端导入 JSON 配置。"
+  }
+}

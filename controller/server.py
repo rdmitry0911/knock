@@ -310,7 +310,7 @@ def browser_access(db, profile, request, source):
     reserve_nonce('confirm:'+profile['id'],proof[12:28].hex(),int(time.time()))
     access('access-'+action,profile['id'],credential_tag(profile),source)
     result=own_status(db,profile['id'])
-    result['message']='Доступ включён' if action=='open' else 'Доступ выключен'
+    result['message']='Access enabled' if action=='open' else 'Access disabled'
     return result
 
 

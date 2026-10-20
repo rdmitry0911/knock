@@ -157,6 +157,18 @@ with tempfile.TemporaryDirectory(prefix='knock-openwrt-vm-') as directory:
             profile=common.client_bundle(json.loads(remote('cat /root/shared.json').stdout))
             status=native.remote(profile,'status');assert status['observed_ip']=='10.0.2.2'
             assert status['access_active'] is False and not echo_ok()
+            # Read actual installed catalog/module files through the VM's uhttpd.
+            locales=('en','ru','de','fr','es','pt_BR','zh_CN','ja','ar','hi')
+            for resource in [*(f'_locales/{locale}/messages.json' for locale in locales),'i18n.js','ice-operation.js']:
+                connection=http.client.HTTPSConnection('127.0.0.1',api_port,context=ssl._create_unverified_context(),timeout=5)
+                try:
+                    connection.connect()
+                    assert hashlib.sha256(connection.sock.getpeercert(binary_form=True)).hexdigest()==profile['server_certificate_sha256']
+                    connection.request('GET','/app/'+resource);response=connection.getresponse();content=response.read()
+                    assert response.status==200,(resource,response.status)
+                    if resource.endswith('.json'):assert json.loads(content)['extensionName']['message']=='Knock Control'
+                finally:connection.close()
+            record({'phase':'localized-web-app','result':'PASS','locales':list(locales),'checks':['Installed catalogs and localization/ICE modules served by real uhttpd']})
             def browser(action):
                 status=native.remote(profile,'status');cfg={**status['settings'],'secret':profile['secret']};now=time.time()
                 payload={'action':'browser-'+action,'sequence':[list(item) for item in common.sequence(cfg,action,status['observed_ip'],now=now)],

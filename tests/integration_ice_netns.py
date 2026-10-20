@@ -63,6 +63,7 @@ def main():
                     if b'KNI1' in data:discovery_leaks.append(True);continue
                     address=bytes(a^b for a,b in zip(socket.inet_aton(peer[0]),b'\x21\x12\xa4\x42'))
                     response=b'\x01\x01\x00\x0c'+data[4:20]+b'\x00\x20\x00\x08\x00\x01'+struct.pack('!H',peer[1]^0x2112)+address
+                    time.sleep(float(os.environ.get('ICE_STUN_DELAY','0')))
                     stun.sendto(response,peer)
             threading.Thread(target=stun_server,daemon=True).start()
             capture=socket.socket(socket.AF_PACKET,socket.SOCK_RAW,socket.htons(0x0800));capture.bind(('wan',0));capture.settimeout(.2)
@@ -125,11 +126,15 @@ def main():
             rpc(0,'on');rpc(0,'close-stream');rpc(1,'on')
             for _ in range(12):assert rpc(1,'tcp')['reachable'];time.sleep(1)
             assert not granted(0) and granted(1);rpc(1,'off');assert not granted(1)
+            if os.environ.get('ICE_DETACH'):
+                for i in (0,1):
+                    rpc(i,'on-detached');assert granted(i) and rpc(i,'tcp')['reachable'],'ON did not survive closing popup'
+                    rpc(i,'off-detached');assert not granted(i),'OFF did not survive closing popup'
             for i in (0,1):
                 result=rpc(i,'stop');assert result['apiRequests']==0 and result['errors']==[];noise_count[0]+=result['noise_packets']
             assert not any(int(row.split()[1].split(':')[1],16)==db['profiles'][ident]['settings']['base'] for row in Path('/proc/net/udp').read_text().splitlines()[1:]),'Knock UDP socket is listening'
             assert not discovery_leaks,'Secret-bearing token sent to discovery STUN server'
-            report={'result':'PASS','firefox_test_sandbox_disabled':bool(os.environ.get('MOZ_DISABLE_SOCKET_PROCESS_SANDBOX')),'engines':['Chromium extension MV3','Firefox MV2 extension (desktop engine)' if not os.environ.get('ICE_FIREFOX_PWA') else 'Firefox PWA mobile viewport'],'noise_packets':noise_count[0],'checks':['real browser UI ICE with automatic STUN source discovery; no API requests and closed HTTPS port','shared profile, two source namespaces; OFF blocks established connection without affecting the other IP','captured STUN replay rejected before and after daemon restart','late ON cannot supersede newer OFF; wrong source and revision rejected','protected activity refreshes only its source; other source expires when idle','no listening UDP socket on the knock port']}
+            report={'result':'PASS','firefox_test_sandbox_disabled':bool(os.environ.get('MOZ_DISABLE_SOCKET_PROCESS_SANDBOX')),'engines':['Chromium extension MV3','Firefox MV2 extension (desktop engine)' if not os.environ.get('ICE_FIREFOX_PWA') else 'Firefox PWA mobile viewport'],'noise_packets':noise_count[0],'popup_close_tested':bool(os.environ.get('ICE_DETACH')),'stun_delay_seconds':float(os.environ.get('ICE_STUN_DELAY','0')),'checks':['real browser UI ICE with automatic STUN source discovery; no API requests and closed HTTPS port','shared profile, two source namespaces; OFF blocks established connection without affecting the other IP','captured STUN replay rejected before and after daemon restart','late ON cannot supersede newer OFF; wrong source and revision rejected','protected activity refreshes only its source; other source expires when idle','no listening UDP socket on the knock port']}
             out=Path(os.environ.get('ICE_REPORT','dist/openwrt/browser-ice-test-report.json'));out.parent.mkdir(parents=True,exist_ok=True);out.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report),flush=True)
         except Exception:
             for (source,action),payload in captures.items():

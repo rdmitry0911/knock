@@ -57,18 +57,18 @@ with tempfile.TemporaryDirectory(prefix='knock-firefox-mobile-') as directory:
             def element(selector):return request('POST',base+'/element',{'using':'css selector','value':selector})['element-6066-11e4-a52e-4f735466cecf']
             def click(selector):request('POST',base+'/element/'+element(selector)+'/click',{})
             def image(name):
-                request('POST',base+'/element/'+element('#qr-image')+'/value',{'text':str(home/'server'/name)})
-                message('Профиль импортирован')
+                request('POST',base+'/element/'+element('#import-file')+'/value',{'text':str(home/'server'/name)})
+                message('Profile imported')
             request('POST',base+'/url',{'url':f'moz-extension://{UUID}/app.html'})
-            message('Импортируйте QR');image('alice.png')
-            click('#open');until("return document.querySelector('#state').textContent",lambda v:'Доступ включён' in v)
-            click('#close');until("return document.querySelector('#state').textContent",lambda v:'Доступ выключен' in v)
-            request('POST',base+'/refresh',{});message('Нажмите ON')
+            message('Import a server-issued JSON profile');image('alice.json')
+            click('#open');until("return document.querySelector('#state').textContent",lambda v:'Access enabled' in v)
+            click('#close');until("return document.querySelector('#state').textContent",lambda v:'Access disabled' in v)
+            request('POST',base+'/refresh',{});message('Press ON')
             assert evaluate("return document.querySelector('#import-panel').hidden")
-            click('#add-profile');image('bob.png')
+            click('#add-profile');image('bob.json')
             assert evaluate("return document.querySelector('#profiles').selectedOptions[0].textContent")=='Bob'
-            click('#open');until("return document.querySelector('#state').textContent",lambda v:'Доступ включён' in v)
-            print('PASS: Firefox mobile MV2 package: real background module, PNG QR, HTTPS ON/OFF, persisted profiles, no native helper (desktop engine)')
+            click('#open');until("return document.querySelector('#state').textContent",lambda v:'Access enabled' in v)
+            print('PASS: Firefox mobile MV2 package: real background module, JSON import, HTTPS ON/OFF, persisted profiles, no native helper (desktop engine)')
         except Exception:
             print((home/'driver.log').read_text()[-4000:]);raise
         finally:

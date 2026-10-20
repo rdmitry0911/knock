@@ -1,11 +1,11 @@
 // jsQR is bundled locally; images/camera frames never leave this device.
 export async function decodeImage(file) {
-  if(!file||file.size>8*1024*1024)throw new Error('Выберите изображение QR размером до 8 МБ');
+  if(!file||file.size>8*1024*1024)throw new Error('Choose a QR image up to 8 MB');
   let source,release=()=>{};
   try {source=await createImageBitmap(file);release=()=>source.close();}
   catch {
     const url=URL.createObjectURL(file);release=()=>URL.revokeObjectURL(url);
-    source=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Не удалось прочитать изображение'));image.src=url;});
+    source=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Cannot read this image'));image.src=url;});
   }
   try {
     const width=source.width||source.naturalWidth,height=source.height||source.naturalHeight;
@@ -14,7 +14,7 @@ export async function decodeImage(file) {
     const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(source,0,0,canvas.width,canvas.height);
     const pixels=context.getImageData(0,0,canvas.width,canvas.height);
     const code=globalThis.jsQR(pixels.data,pixels.width,pixels.height,{inversionAttempts:'attemptBoth'});
-    if(!code?.data)throw new Error('QR не распознан. Выберите чёткое изображение целиком с белой рамкой.');
+    if(!code?.data)throw new Error('QR not found. Choose a clear, complete image with its white border.');
     return code.data;
   } finally {release();}
 }
@@ -27,7 +27,7 @@ export function bindQRImport(onImport,onError) {
   document.querySelector('#qr-start')?.addEventListener('click',async()=>{
     try {
       stop();
-      if(!navigator.mediaDevices?.getUserMedia)throw new Error('Камера недоступна. Импортируйте фото или изображение QR.');
+      if(!navigator.mediaDevices?.getUserMedia)throw new Error('Camera unavailable. Import a QR image instead.');
       stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false});
       video.srcObject=stream;panel.hidden=false;await video.play();stopped=false;
       const canvas=document.createElement('canvas'),context=canvas.getContext('2d',{willReadFrequently:true});let last=0;

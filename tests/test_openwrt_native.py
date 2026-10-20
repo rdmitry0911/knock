@@ -65,9 +65,9 @@ class NativeOpenWrt(unittest.TestCase):
                     'udp_range':{'type':'input','protocol':'udp','ports':['30000-30003','5353']},
                     'ping':{'type':'input','protocol':'icmp','icmp_type':'echo-request'},
                     'routed':{'type':'forward','protocol':'udp','dest_ip':'192.168.1.20','ports':['9000-9010']}}
-                ident=server.issue(db,"Телефон ' резерв", [], [], 10, 60, rules=list(db['rules']))
+                ident=server.issue(db,"Phone ' Ω spare", [], [], 10, 60, rules=list(db['rules']))
             else:
-                ident=server.issue(db,"Телефон ' резерв", [23456], [23456,23457], 10, 60)
+                ident=server.issue(db,"Phone ' Ω spare", [23456], [23456,23457], 10, 60)
             profile=db['profiles'][ident];cfg=server.config_for(db,profile)
             ip='127.0.0.2';now=time.time();nonce=secrets.token_bytes(16)
             def request(config):return {'action':'browser-open',

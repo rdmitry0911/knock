@@ -1,6 +1,6 @@
 ## knock: A port-knocking implementation
 
-Download browser extensions, the web app and architecture-specific OpenWrt APKs from [release v3.0.0-r6](https://github.com/rdmitry0911/knock/releases/tag/v3.0.0-r6). The Mozilla-signed `knock-control-firefox-3.0.0.xpi` supports desktop Firefox and Firefox Android. Chrome/Edge ZIPs require unpacking and developer mode. See [installation and Mozilla signing instructions (Russian)](doc/BROWSER_INSTALLATION_RU.md).
+Download browser extensions, the web app and architecture-specific OpenWrt APKs from [release v3.1.1](https://github.com/rdmitry0911/knock/releases/tag/v3.1.1). The Mozilla-signed `knock-control-firefox-3.1.1.xpi` supports desktop Firefox and Firefox Android. Chrome/Edge ZIPs require unpacking and developer mode. See [installation and Mozilla signing instructions (Russian)](doc/BROWSER_INSTALLATION_RU.md).
 
 This fork includes **Knock Control**, a controlled emergency access mechanism for
 sensitive services normally blocked from the public internet. It includes a
@@ -20,6 +20,22 @@ It does not install Python. Schema-2 JSON configurations migrate automatically;
 client credentials and the SQLite replay journal are preserved. Ordinary Linux installations
 retain the Python controller and iptables/ipset.
 See the OpenWrt section of README_RU.md for APK installation and QEMU verification.
+
+Current verification: [3.1.1 reports](doc/RELEASE_3.1.1.md).
+
+### Browser interface and languages
+
+Click the toolbar icon to open the compact control popup. On desktop, import a
+server-issued JSON file or paste its JSON text; QR and camera controls appear
+only on mobile. The full application remains available from the popup for larger
+settings forms. ON/OFF transmission continues in the extension background after
+the popup closes, and a queued command keeps the profile selected when it was sent.
+
+The interface follows the browser language: English, Russian, German, French,
+Spanish, Brazilian Portuguese, Simplified Chinese, Japanese, Arabic or Hindi.
+English is the source language and fallback. Arabic uses right-to-left layout.
+Translations are packaged locally in `_locales`; no translation service is used.
+The icon comes from the owner's [Mozilla profile](https://addons.mozilla.org/en-US/firefox/user/20261645/).
 
 ### Browser ON/OFF without a management listener
 

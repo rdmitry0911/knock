@@ -1,16 +1,20 @@
 // Actual Chrome APK on an Android AVD, using Playwright's Android/CDP bridge.
 import {readFile,writeFile} from 'node:fs/promises';
 import net from 'node:net';
+import {messageKey} from '../extension/i18n.js';
 const {_android}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const work=process.argv[2];
 const rpc=op=>new Promise((resolve,reject)=>{const socket=net.createConnection(work+'/control.sock');let data='';socket.on('connect',()=>socket.write(JSON.stringify({op})));socket.on('data',b=>data+=b);socket.on('end',()=>resolve(JSON.parse(data)));socket.on('error',reject);});
+const expectedCache=(await readFile(new URL('../extension/sw.js',import.meta.url),'utf8')).match(/const CACHE='([^']+)'/)[1];
 const bundle=JSON.parse(await readFile(work+'/bundle.json','utf8')),enrollment=await readFile(work+'/enrollment.txt','utf8');
 const [device]=await _android.devices();if(!device)throw new Error('Android AVD not found');
 const context=await device.launchBrowser({ignoreHTTPSErrors:true,args:['--no-first-run','--disable-fre','--no-default-browser-check','--ignore-certificate-errors']});
 const checks=[],errors=[];
+async function localized(page,source,values={}) {const lang=await page.locator('html').getAttribute('lang');const catalog=JSON.parse(await readFile(new URL('../extension/_locales/'+lang.replace('-','_')+'/messages.json',import.meta.url),'utf8'));return (catalog[messageKey(source)]?.message??source).replace(/\{(\w+)\}/g,(all,key)=>values[key]??all);}
+async function expectMessage(page,source,values={}) {await page.locator('#message').filter({hasText:await localized(page,source,values)}).waitFor({timeout:15000});}
 try {
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(enrollment);await page.locator('#message').filter({hasText:'Профиль импортирован'}).waitFor();
+  await page.goto(enrollment);await expectMessage(page,'Profile imported. Press ON.');
   await device.shell('uiautomator dump /sdcard/knock-ui.xml');
   const native=(await device.shell('cat /sdcard/knock-ui.xml')).toString();
   if(native.includes('Chrome notifications')) {
@@ -18,8 +22,8 @@ try {
     if(bounds){const [,x1,y1,x2,y2]=bounds.map(Number);await device.shell(`input tap ${Math.floor((x1+x2)/2)} ${Math.floor((y1+y2)/2)}`);}
   }
   if(await page.evaluate(()=>location.hash))throw new Error('Enrollment secret left in URL');
-  await page.locator('#connection-panel summary').click();await page.locator('[name=stun_server]').fill(bundle.stun_server);await page.locator('#connection-form button').click();await page.locator('#message').filter({hasText:'Подключение сохранено'}).waitFor();
-  await page.reload();await page.locator('#message').filter({hasText:'Нажмите ON'}).waitFor();
+  await page.locator('#connection-panel summary').click();await page.locator('[name=stun_server]').fill(bundle.stun_server);await page.locator('#connection-form button').click();await expectMessage(page,'Connection saved on this device.');
+  await page.reload();await expectMessage(page,'Press ON.');
   checks.push('QR enrollment URL imported and removed from URL; profile survives reload');
   const ua=await page.evaluate(()=>navigator.userAgent);console.log(JSON.stringify({phase:'import',ua}));
   const service=await context.newPage();
@@ -29,13 +33,14 @@ try {
   }
   async function action(which) {
     await page.bringToFront();await page.locator('#'+which).click();
-    await page.locator('#message').filter({hasText:'UDP-knock '+(which==='open'?'ON':'OFF')+' отправлен'}).waitFor({timeout:15000});
+    await expectMessage(page,'Signed UDP knock {operation} sent. No server response was requested.',{operation:which==='open'?'ON':'OFF'});
     return await rpc('status');
   }
   if(await reachable())throw new Error('Service reachable before ON');
   await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
+  await page.waitForFunction(async expected=>{const keys=await caches.keys();return keys.includes(expected)&&!keys.some(key=>key.startsWith('knock-control-shell-')&&key!==expected);},expectedCache,{timeout:30000});
   const before=await rpc('close-api');
-  await page.reload();await page.locator('#message').filter({hasText:'Нажмите ON'}).waitFor();checks.push('Cached web app shell and stored profile reload with the HTTPS server stopped');
+  await page.reload();await expectMessage(page,'Press ON.');checks.push('Cached web app shell and stored profile reload with the HTTPS server stopped');
   const on=await action('open');console.log(JSON.stringify({phase:'on',grants:on.grants,captured_packets:on.captures.length}));
   if(!Object.values(on.grants).includes(true)||!await reachable())throw new Error('ICE ON did not open protected service');
   const off=await action('close');if(Object.values(off.grants).includes(true)||await reachable())throw new Error('ICE OFF did not close protected service');
@@ -43,11 +48,11 @@ try {
   await rpc('restart-daemon');const replay=await rpc('replay');if(Object.values(replay.grants).includes(true))throw new Error('Replay reopened service');checks.push('Captured ON rejected after daemon restart');
   await action('open');await new Promise(r=>setTimeout(r,17000));if(await reachable())throw new Error('Idle timeout failed');checks.push('Idle access expires without protected service traffic');
   const after=await rpc('status');if(after.api_requests!==before.api_requests||after.knock_udp_listener||after.stun_secret_leaks||!after.daemon_alive)throw new Error('Transport invariants failed');
-  await rpc('open-api');await page.bringToFront();await page.locator('#status').click();await page.locator('#state').filter({hasText:'Доступ выключен'}).waitFor();
-  await page.locator('#settings-panel summary').click();await page.locator('[name=idle_timeout]').fill('12');await page.locator('#settings-form button').click();await page.locator('#message').filter({hasText:'Настройки сохранены'}).waitFor();checks.push('Signed HTTPS status and profile configuration work on Android');
+  await rpc('open-api');await page.bringToFront();await page.locator('#status').click();await page.locator('#state').filter({hasText:await localized(page,'Access disabled')}).waitFor();
+  await page.locator('#settings-panel summary').click();await page.locator('[name=idle_timeout]').fill('12');await page.locator('#settings-form button').click();await expectMessage(page,'Settings saved. Press ON.');checks.push('Signed HTTPS status and profile configuration work on Android');
   await rpc('close-api');await action('open');if(!await reachable())throw new Error('Updated revision failed');await action('close');
   await page.bringToFront();await page.screenshot({path:work+'/chrome-android.png'});await device.screenshot({path:work+'/chrome-android-device.png'});
   if(errors.length)throw new Error(errors.join('; '));
-  const result={result:'PASS',browser:'Chrome Android',user_agent:ua,checks,api_requests_during_ice:after.api_requests-before.api_requests,knock_udp_listener:after.knock_udp_listener,certificate_exception:'Self-signed certificate accepted only in this disposable test browser'};
+  const result={result:'PASS',browser:'Chrome Android',interface_language:await page.locator('html').getAttribute('lang'),user_agent:ua,checks,api_requests_during_ice:after.api_requests-before.api_requests,knock_udp_listener:after.knock_udp_listener,certificate_exception:'Self-signed certificate accepted only in this disposable test browser'};
   await writeFile(work+'/chrome-report.json',JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));
-} finally {await context.close();await device.close();}
+} catch(error) {for(const page of context.pages()) {try {console.error(JSON.stringify({diagnostic:true,message:await page.locator('#message').textContent({timeout:1000}),page_errors:errors,cache_names:await page.evaluate(()=>caches.keys())}));}catch{}}throw error;} finally {await context.close();await device.close();}

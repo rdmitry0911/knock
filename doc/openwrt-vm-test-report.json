@@ -1,0 +1,177 @@
+{
+  "result": "PASS",
+  "image": "openwrt-25.12.5-x86-64-generic-ext4-combined.img.gz",
+  "image_sha256": "23e2538e8ab0eb52dfed1c65d608ecdb71ffd432dd54885da138ae67cd9e4461",
+  "architecture": "x86_64",
+  "virtualization": "QEMU KVM",
+  "phases": [
+    {
+      "phase": "boot",
+      "result": "PASS",
+      "release": {
+        "distribution": "OpenWrt",
+        "version": "25.12.5",
+        "firmware_url": "https://downloads.openwrt.org/",
+        "revision": "r33051-f5dae5ece4",
+        "target": "x86/64",
+        "description": "OpenWrt 25.12.5 r33051-f5dae5ece4",
+        "builddate": "1782737960"
+      },
+      "kernel": "6.12.94",
+      "model": "QEMU Ubuntu 24.04 PC v2 (i440FX + PIIX, arch_caps fix, 1996)"
+    },
+    {
+      "phase": "upgrade",
+      "result": "PASS",
+      "from": "knock-control-3.0.0-r6.apk",
+      "checks": [
+        "standard UCI configuration preserved",
+        "legacy firewall include regenerated before fw4 reload"
+      ]
+    },
+    {
+      "phase": "cli",
+      "result": "PASS",
+      "checks": [
+        "help aliases and init usage errors work without changing configuration"
+      ]
+    },
+    {
+      "phase": "install",
+      "result": "PASS",
+      "package": "knock-control-3.1.1-r1.apk",
+      "sha256": "b9ea8ff5af4e1fb1b7a29feff3680161866fffded004b6e17bc2d501e30064c9",
+      "checks": [
+        "APK installed in clean OpenWrt image",
+        "all dependencies resolved by apk from official repositories"
+      ]
+    },
+    {
+      "phase": "prepare",
+      "result": "PASS",
+      "checks": [
+        "no Python before or after APK install",
+        "native C initialization and profile issuance",
+        "offline QR PNG and private permissions",
+        "dedicated uhttpd API and procd daemon",
+        "fw4 syntax and protection hook before established accept"
+      ]
+    },
+    {
+      "phase": "localized-web-app",
+      "result": "PASS",
+      "locales": [
+        "en",
+        "ru",
+        "de",
+        "fr",
+        "es",
+        "pt_BR",
+        "zh_CN",
+        "ja",
+        "ar",
+        "hi"
+      ],
+      "checks": [
+        "Installed catalogs and localization/ICE modules served by real uhttpd"
+      ]
+    },
+    {
+      "phase": "wan",
+      "result": "PASS",
+      "observed_ip": "10.0.2.2",
+      "checks": [
+        "real WAN default-deny",
+        "signed HTTPS ON opens protected service",
+        "OFF blocks existing WAN stream",
+        "OFF closes new WAN connections"
+      ]
+    },
+    {
+      "phase": "native-wan",
+      "result": "PASS",
+      "checks": [
+        "mixed TCP/UDP knocks captured on WAN eth1",
+        "native ON opens service",
+        "native OFF blocks existing WAN traffic",
+        "captured native proof replay is rejected"
+      ]
+    },
+    {
+      "phase": "native-no-python",
+      "result": "PASS",
+      "noise_packets": 142300,
+      "checks": [
+        "native mixed TCP/UDP: same-profile ON from two IPs; OFF preserves the other IP",
+        "signed browser HTTPS: same-profile ON from two IPs; OFF preserves the other IP",
+        "protected TCP traffic refreshes its own lease; idle IP expires despite API and knock noise",
+        "configuration flushes only its own profile and hot-reloads the same daemon PID",
+        "firewall4 reload retains unexpired leases; OFF still works",
+        "API nonce replay, incomplete proof, policy escape, stale revision and static path escape are rejected"
+      ]
+    },
+    {
+      "phase": "native-admin",
+      "result": "PASS",
+      "checks": [
+        "revocation removes grants and blocks authentication/export",
+        "TLS key mismatch is rejected before mutation",
+        "TLS restart failure restores certificates and database",
+        "valid TLS installation restarts dedicated API",
+        "nft failure restores profile database and daemon configuration"
+      ]
+    },
+    {
+      "phase": "uci",
+      "result": "PASS",
+      "checks": [
+        "native UCI configuration and private permissions",
+        "uci set/commit and init reload apply settings",
+        "JSON migration retains profiles, client exports and durable nonces",
+        "configuration is included in sysupgrade backups"
+      ]
+    },
+    {
+      "phase": "postboot",
+      "result": "PASS",
+      "checks": [
+        "credentials and settings survive reboot",
+        "API and daemon autostart without Python",
+        "live leases are closed after reboot",
+        "API replay journal survives reboot",
+        "ON/OFF works after reboot"
+      ]
+    },
+    {
+      "phase": "reinstall",
+      "result": "PASS",
+      "checks": [
+        "package removal/reinstall retains generated credentials and settings",
+        "API works after reinstall",
+        "firewall4 configuration validates"
+      ]
+    },
+    {
+      "phase": "named-rules",
+      "result": "PASS",
+      "checks": [
+        "installed C rule-set CLI and UCI bindings; rule-only profile and QR export",
+        "routed namespaces: inclusive TCP/UDP ranges, ICMP and TCP/UDP DNAT with port translation",
+        "OFF blocks established TCP/UDP NAT streams; second source using same profile survives",
+        "client cannot select unauthorized rules; per-IP UDP activity and idle expiry; API does not refresh lease",
+        "software flow offloading enabled: protection precedes flow offload and established accepts"
+      ]
+    },
+    {
+      "phase": "browser-ice",
+      "result": "PASS",
+      "checks": [
+        "real Chromium and Firefox ICE over WAN UDP forwarding with management bound to loopback",
+        "installed daemon + C controller + nftables ON/OFF; no UDP listener on knock port",
+        "captured ICE ON remains rejected after daemon restart by durable SQLite journal"
+      ]
+    }
+  ],
+  "version": "3.1.1",
+  "tested_date": "2026-10-20"
+}

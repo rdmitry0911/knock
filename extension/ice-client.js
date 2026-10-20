@@ -5,25 +5,25 @@ export function ipv4(value) {
   return value.split('.').every(n=>String(Number(n))===n&&Number(n)<=255);
 }
 export function validateStun(value) {
-  if(typeof value!=='string'||!/^stun:[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}:[0-9]{1,5}$/.test(value)||Number(value.slice(value.lastIndexOf(':')+1))<1||Number(value.slice(value.lastIndexOf(':')+1))>65535)throw new Error('STUN-сервер: stun:имя:порт');
+  if(typeof value!=='string'||!/^stun:[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}:[0-9]{1,5}$/.test(value)||Number(value.slice(value.lastIndexOf(':')+1))<1||Number(value.slice(value.lastIndexOf(':')+1))>65535)throw new Error('STUN server format: stun:host:port');
   return value;
 }
 export async function sendIce(host,port,token,durationMs=4500,stunServer) {
-  if(!ipv4(host)||!Number.isInteger(port)||port<1024||port>65535||(typeof token!=='function'&&(typeof token!=='string'||!/^KNI1[0-9a-f]{24}[OC][0-9a-f]{136}$/.test(token))))throw new Error('Некорректные параметры ICE-knock');
-  if(typeof RTCPeerConnection!=='function')throw new Error('WebRTC недоступен в этом браузере');
+  if(!ipv4(host)||!Number.isInteger(port)||port<1024||port>65535||(typeof token!=='function'&&(typeof token!=='string'||!/^KNI1[0-9a-f]{24}[OC][0-9a-f]{136}$/.test(token))))throw new Error('Invalid ICE knock parameters');
+  if(typeof RTCPeerConnection!=='function')throw new Error('WebRTC is unavailable in this browser');
   const pc=new RTCPeerConnection({iceServers:stunServer?[{urls:validateStun(stunServer)}]:[],iceTransportPolicy:'all'});
   let timer,channel;
   try {
     let source;
     if(typeof token==='function') {
       source=new Promise((resolve,reject)=>{
-        timer=setTimeout(()=>reject(new Error('Не удалось определить внешний IPv4 через STUN. Укажите его вручную.')),7000);
+        timer=setTimeout(()=>reject(new Error('Cannot discover the public IPv4 via STUN. Enter it manually.')),7000);
         pc.onicecandidate=e=>{const c=e.candidate;if(c?.type==='srflx'&&ipv4(c.address))resolve(c.address);};
       });source.catch(()=>{});
     }
     channel=pc.createDataChannel('knock');const offer=await pc.createOffer();await pc.setLocalDescription(offer);
     if(source){token=await token(await source);clearTimeout(timer);}
-    if(typeof token!=='string'||!/^KNI1[0-9a-f]{24}[OC][0-9a-f]{136}$/.test(token))throw new Error('Некорректная подпись ICE-knock');
+    if(typeof token!=='string'||!/^KNI1[0-9a-f]{24}[OC][0-9a-f]{136}$/.test(token))throw new Error('Invalid ICE knock signature');
     // No ICE password is a profile secret. Authentication is our HMAC token.
     const password=Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');
     const fingerprint=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0').toUpperCase()).join(':');
@@ -38,6 +38,6 @@ export async function sendIce(host,port,token,durationMs=4500,stunServer) {
     let checking=pc.iceConnectionState!=='new';
     pc.addEventListener('iceconnectionstatechange',()=>{if(pc.iceConnectionState!=='new')checking=true;});
     await new Promise(resolve=>setTimeout(resolve,durationMs));
-    if(!checking)throw new Error('Браузер не начал отправку ICE-knock. Проверьте разрешение WebRTC/UDP или выберите HTTPS.');
+    if(!checking)throw new Error('ICE knock did not start. Allow WebRTC/UDP or select HTTPS.');
   } finally {clearTimeout(timer);channel?.close();pc.close();}
 }

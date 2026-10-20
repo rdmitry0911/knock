@@ -6,7 +6,7 @@ import subprocess
 import zipfile
 root=Path(__file__).resolve().parents[1]
 subprocess.run(['/usr/bin/python3',str(root/'scripts/package-extension.py')],check=True)
-dist=root/'dist';version='3.0.0'
+dist=root/'dist';version='3.1.1'
 files=[]
 for directory in ('src','controller','extension','packaging','scripts','tests','doc'):
     for path in (root/directory).rglob('*'):
@@ -22,11 +22,14 @@ with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as archive:
         firefox = dist / 'knock-control-firefox-mobile.unsigned.xpi'
     for path in (dist/'knock-control-chromium-browser.zip', firefox, dist/'knock-control-web-app.zip'):
         archive.write(path,Path(f'knock-control-{version}')/'packages'/path.name)
-    if (dist/'openwrt').exists():
-        for path in sorted((dist/'openwrt').rglob('*')):
+    openwrt = dist/'openwrt'/version
+    if not openwrt.exists():openwrt = dist/'openwrt'
+    if openwrt.exists():
+        for path in sorted(openwrt.rglob('*')):
             if path.is_file() and (path.suffix in ('.apk','.ipk') or path.name=='SHA256SUMS' or
-                    (path.parent==dist/'openwrt' and path.suffix in ('.json','.log'))):
-                archive.write(path,Path(f'knock-control-{version}')/'packages/openwrt'/path.relative_to(dist/'openwrt'))
-artifacts=sorted([p for p in dist.glob('knock-control-*') if p.is_file()])
+                    (path.parent==openwrt and path.suffix in ('.json','.log'))):
+                archive.write(path,Path(f'knock-control-{version}')/'packages/openwrt'/path.relative_to(openwrt))
+artifacts=sorted([dist/'knock-control-chromium-browser.zip', firefox,
+                  dist/'knock-control-web-app.zip', output])
 (dist/'SHA256SUMS').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n' for p in artifacts))
 print(output)

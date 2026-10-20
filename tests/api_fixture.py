@@ -38,6 +38,8 @@ qr_codec.write_qr(legacy_bundle(db,a),tmp/'alice.png')
 qr_codec.write_qr(legacy_bundle(db,b),tmp/'bob.png')
 common.atomic_write(tmp/'alice-url.txt',qr_codec.enrollment_url(legacy_bundle(db,a)))
 api.APP_ROOT=ROOT/'dist/web-app'
+# Functional UI suites use many browser contexts behind one loopback IP.
+api.APIServer.allow=lambda self,address: True
 original_run=server.run
 grants=set()
 

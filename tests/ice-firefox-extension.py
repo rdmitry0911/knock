@@ -44,29 +44,32 @@ with tempfile.TemporaryDirectory(prefix='ice-firefox-driver-') as temporary:
                 raise RuntimeError(value)
             def element(selector):return request('POST',base+'/element',{'using':'css selector','value':selector})['element-6066-11e4-a52e-4f735466cecf']
             request('POST',base+'/url',{'url':f'moz-extension://{UUID}/app.html'})
-            message('Импортируйте QR')
+            message('Import a server-issued JSON profile')
             request('POST',base+'/element/'+element('#import-file')+'/value',{'text':config['bundle_file']})
-            message('Профиль импортирован')
+            message('Profile imported')
             request('POST',base+'/execute/async',{'script':"""
-              const done=arguments[arguments.length-1],app=window;app.iceApiRequests=0;
-              const watch=owner=>{const original=owner.fetch.bind(owner);owner.fetch=(input,...args)=>{if(String(input?.url??input).includes('/v1/control'))app.iceApiRequests++;return original(input,...args);};};
-              watch(window);browser.runtime.getBackgroundPage().then(bg=>{watch(bg);done(true);});
+              const done=arguments[arguments.length-1];
+              const watch=owner=>{const original=owner.fetch.bind(owner);owner.fetch=(input,...args)=>{if(String(input?.url??input).includes('/v1/control'))owner.iceApiRequests=(owner.iceApiRequests??0)+1;return original(input,...args);};};
+              browser.runtime.getBackgroundPage().then(bg=>{bg.iceApiRequests=0;watch(bg);done(true);});
             """,'args':[]})
+            def api_count():return request('POST',base+'/execute/async',{'script':'const done=arguments[arguments.length-1];browser.runtime.getBackgroundPage().then(bg=>done(bg.iceApiRequests));','args':[]})
             print(json.dumps({'ready':True}),flush=True)
             for line in sys.stdin:
                 q=json.loads(line)
                 try:
-                    if q['op'] in ('on','off'):
-                        action=q['op'];request('POST',base+'/element/'+element('#open' if action=='on' else '#close')+'/click',{})
-                        message('UDP-knock '+('ON' if action=='on' else 'OFF')+' отправлен')
-                        result={'sent':True,'apiRequests':evaluate('return window.iceApiRequests'),'errors':[],'debug':[]}
+                    if q['op'] in ('on','off','on-detached','off-detached'):
+                        action='on' if q['op'].startswith('on') else 'off';request('POST',base+'/element/'+element('#open' if action=='on' else '#close')+'/click',{})
+                        if q['op'].endswith('-detached'):
+                            time.sleep(.1);request('POST',base+'/url',{'url':'about:blank'});time.sleep(5.5);request('POST',base+'/url',{'url':f'moz-extension://{UUID}/popup.html'});message('Press ON')
+                        else:message('UDP knock '+('ON' if action=='on' else 'OFF')+' sent')
+                        result={'sent':True,'apiRequests':api_count(),'errors':[],'debug':[]}
                     elif q['op']=='tcp':
                         try:
                             with socket.create_connection((bundle['knock_host'],config['service']),timeout=.5) as stream:
                                 stream.sendall(b'ping');reachable=stream.recv(4)==b'ping'
                         except OSError:reachable=False
                         result={'reachable':reachable}
-                    elif q['op']=='stop':print(json.dumps({'ok':True,'apiRequests':evaluate('return window.iceApiRequests'),'errors':[],'noise_packets':0}),flush=True);break
+                    elif q['op']=='stop':print(json.dumps({'ok':True,'apiRequests':api_count(),'errors':[],'noise_packets':0}),flush=True);break
                     else:raise RuntimeError('Unsupported test operation')
                     print(json.dumps(result),flush=True)
                 except Exception as error:

@@ -7,6 +7,7 @@ import socket
 import os
 import re
 import subprocess
+import threading
 from xml.etree import ElementTree
 import sys
 import time
@@ -27,7 +28,15 @@ def request(method,path,data=None):
 def evaluate(script,*args):return request('POST','/execute/sync',{'script':script,'args':list(args)})
 def element(selector):return request('POST','/element',{'using':'css selector','value':selector})['element-6066-11e4-a52e-4f735466cecf']
 def click(selector):request('POST','/element/'+element(selector)+'/click',{})
-def message(text):
+def localized(text,values=None):
+    lang=evaluate('return document.documentElement.lang')
+    catalog=json.loads((ROOT/'extension/_locales'/lang.replace('-','_')/'messages.json').read_text())
+    key=2166136261
+    for byte in text.encode():key=((key^byte)*16777619)&0xffffffff
+    translated=catalog.get('m_'+format(key,'x'),{}).get('message',text)
+    return re.sub(r'\{(\w+)\}',lambda m:str((values or {}).get(m[1],m[0])),translated)
+def message(text,values=None):
+    text=localized(text,values)
     for _ in range(180):
         value=evaluate("return document.querySelector('#message')?.textContent??''")
         if text in value:return value
@@ -47,43 +56,52 @@ request('POST','/moz/context',{'context':'chrome'})
 try:evaluate('const db=Cc["@mozilla.org/security/x509certdb;1"].getService(Ci.nsIX509CertDB);db.addCertFromBase64(arguments[0],"C,,");',certificate)
 finally:request('POST','/moz/context',{'context':'content'})
 rpc('open-api');checks=[]
-handles=request('GET','/window/handles');keeper=handles[0]
-for h in handles[1:]:request('POST','/window',{'handle':h});request('DELETE','/window')
-request('POST','/window',{'handle':keeper})
+handles=request('GET','/window/handles')
+# Android may show its native home screen while closing restored tabs; retain them.
+request('POST','/window',{'handle':handles[-1]}) if handles else request('POST','/window/new',{'type':'tab'})
 if mode=='extension':
     handles=request('GET','/window/handles')
     if handles:
         request('POST','/window',{'handle':handles[0]});request('POST','/window/new',{'type':'tab'})
     encoded=base64.b64encode((ROOT/'dist/knock-control-firefox-mobile.unsigned.xpi').read_bytes()).decode()
-    installed=request('POST','/moz/addon/install',{'addon':encoded,'temporary':True});handles=request('GET','/window/handles');request('POST','/window',{'handle':handles[0]}) if handles else request('POST','/window/new',{'type':'tab'});print('Installed temporary Android extension:',installed,flush=True)
     adb=os.environ.get('ADB_BIN','adb')
-    for _ in range(3):
-        subprocess.run([adb,'shell','uiautomator','dump','/sdcard/knock-ui.xml'],capture_output=True,check=True)
-        xml=subprocess.check_output([adb,'shell','cat','/sdcard/knock-ui.xml'],text=True)
-        nodes=list(ElementTree.fromstring(xml).iter('node'))
-        if not any('Knock Control Mobile was added' in n.get('text','') for n in nodes):break
-        node=next(n for n in nodes if n.get('text')=='OK');x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
-        subprocess.run([adb,'shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)],check=True)
+    # Firefox can wait for its native confirmation before completing addon/install.
+    done=threading.Event()
+    def confirm_added():
+        while not done.wait(.5):
+            subprocess.run([adb,'shell','uiautomator','dump','/sdcard/knock-ui.xml'],capture_output=True,check=True)
+            xml=subprocess.check_output([adb,'shell','cat','/sdcard/knock-ui.xml'],text=True)
+            nodes=list(ElementTree.fromstring(xml).iter('node'))
+            if not any('Knock Control was added' in n.get('text','') for n in nodes):continue
+            node=next(n for n in nodes if n.get('text')=='OK');x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
+            subprocess.run([adb,'shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)],check=True)
+            return
+    confirmation=threading.Thread(target=confirm_added,daemon=True);confirmation.start()
+    try:
+        installed=request('POST','/moz/addon/install',{'addon':encoded,'temporary':True})
+        confirmation.join(timeout=6)
+    finally:done.set();confirmation.join(timeout=5)
+    print('Installed temporary Android extension:',installed,flush=True)
     handles=request('GET','/window/handles');assert handles,'No Android browser tab';request('POST','/window',{'handle':handles[-1]})
     client='moz-extension://22222222-2222-4222-8222-222222222222/app.html'
     request('POST','/url',{'url':client})
     for _ in range(100):
         value=evaluate("return document.querySelector('#message')?.textContent??''")
-        if 'Импортируйте QR' in value or 'Нажмите ON' in value:break
+        if value:break
         time.sleep(.1)
     if evaluate("return document.querySelector('#import-panel').hidden"):click('#add-profile')
     click('#import-panel details summary')
-    evaluate("document.querySelector('#import-text').value=arguments[0]",(work/'enrollment.txt').read_text());click('#import-button');message('Профиль импортирован')
+    evaluate("document.querySelector('#import-text').value=arguments[0]",(work/'enrollment.txt').read_text());click('#import-button');message('Profile imported. Press ON.')
     checks.append('Original unsigned release XPI temporarily installed in real Firefox Android; QR text imported')
 else:
     request('POST','/url',{'url':'about:blank'})
-    request('POST','/url',{'url':(work/'enrollment.txt').read_text()});message('Профиль импортирован');client=bundle['server_url']+'/app/'
+    request('POST','/url',{'url':(work/'enrollment.txt').read_text()});message('Profile imported. Press ON.');client=bundle['server_url']+'/app/'
     assert evaluate('return location.hash')=='';checks.append('QR enrollment link imported and secret fragment removed')
-click('#connection-panel summary');evaluate("document.querySelector('[name=stun_server]').value=arguments[0]",bundle['stun_server']);click('#connection-form button');message('Подключение сохранено')
-request('POST','/refresh',{});message('Нажмите ON');checks.append('Profile persists after page reload')
+click('#connection-panel summary');evaluate("document.querySelector('[name=stun_server]').value=arguments[0]",bundle['stun_server']);click('#connection-form button');message('Connection saved on this device.')
+request('POST','/refresh',{});message('Press ON.');checks.append('Profile persists after page reload')
 if mode=='pwa':
     request('POST','/execute/async',{'script':'const done=arguments[arguments.length-1];navigator.serviceWorker.ready.then(()=>done(true));','args':[]})
-    request('POST','/url',{'url':'about:blank'});request('POST','/url',{'url':client});message('Нажмите ON')
+    request('POST','/url',{'url':'about:blank'});request('POST','/url',{'url':client});message('Press ON.')
     assert evaluate('return !!navigator.serviceWorker.controller'),'PWA service worker is not controlling its page'
     checks.append('Service worker activated and controls saved application')
 ua=evaluate('return navigator.userAgent');print(json.dumps({'phase':'import','mode':mode,'user_agent':ua}),flush=True)
@@ -97,12 +115,12 @@ def reachable():
     finally:
         request('POST','/url',{'url':'about:blank'});switch(client_handle)
 def action(which):
-    switch(client_handle);click('#'+which);message('UDP-knock '+('ON' if which=='open' else 'OFF')+' отправлен');return rpc('status')
+    switch(client_handle);click('#'+which);message('Signed UDP knock {operation} sent. No server response was requested.',{'operation':'ON' if which=='open' else 'OFF'});return rpc('status')
 
 assert not granted() and not reachable(),'Service already open before ON'
 before=rpc('close-api')
 if mode=='pwa':
-    request('POST','/url',{'url':'about:blank'});request('POST','/url',{'url':client});message('Нажмите ON');checks.append('PWA opens from saved shell with stored profile while HTTPS server is stopped')
+    request('POST','/url',{'url':'about:blank'});request('POST','/url',{'url':client});message('Press ON.');checks.append('PWA opens from saved shell with stored profile while HTTPS server is stopped')
 on=action('open');assert any(on['grants'].values()) and reachable(),'Firefox Android ICE ON failed'
 print(json.dumps({'phase':'on','mode':mode,'grants':on['grants']}),flush=True)
 action('close');assert not granted() and not reachable(),'Firefox Android ICE OFF failed'
@@ -119,11 +137,12 @@ if mode=='extension':
             x1,y1,x2,y2=map(int,re.findall(r'\d+',n.get('bounds')))
             subprocess.run([adb,'shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)],check=True)
             break
+disabled=localized('Access disabled')
 for _ in range(120):
-    if 'Доступ выключен' in evaluate("return document.querySelector('#state').textContent"):break
+    if disabled in evaluate("return document.querySelector('#state').textContent"):break
     time.sleep(.1)
 else:raise AssertionError('Signed status failed')
 checks.append('Signed HTTPS status works in Firefox Android')
 (work/('firefox-'+mode+'-android.png')).write_bytes(base64.b64decode(request('GET','/screenshot')))
-result={'result':'PASS','browser':'Firefox Android','mode':mode,'user_agent':ua,'checks':checks,'api_requests_during_ice':after['api_requests']-before['api_requests'],'knock_udp_listener':after['knock_udp_listener'],'certificate_exception':'Fixture CA installed only in the disposable Firefox NSS profile; WebDriver acceptInsecureCerts also enabled','extension_installation':'temporary debugging install; permanent Firefox installation still requires Mozilla signature' if mode=='extension' else None}
+result={'result':'PASS','browser':'Firefox Android','mode':mode,'interface_language':evaluate('return document.documentElement.lang'),'user_agent':ua,'checks':checks,'api_requests_during_ice':after['api_requests']-before['api_requests'],'knock_udp_listener':after['knock_udp_listener'],'certificate_exception':'Fixture CA installed only in the disposable Firefox NSS profile; WebDriver acceptInsecureCerts also enabled','extension_installation':'temporary debugging install; permanent Firefox installation still requires Mozilla signature' if mode=='extension' else None}
 (work/('firefox-'+mode+'-report.json')).write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result),flush=True)

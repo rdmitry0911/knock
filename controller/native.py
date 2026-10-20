@@ -125,7 +125,7 @@ def knock(config, action, code=None):
         time.sleep(.15)
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.sendto(proof, (address, cfg['base']))
-    return {'ok': True, 'sent': len(ports) + 1, 'message': 'Последовательность отправлена; получение сервером не подтверждено.'}
+    return {'ok': True, 'sent': len(ports) + 1, 'message': 'Sequence sent; receipt by the server is not confirmed.'}
 
 
 def dispatch(request):
@@ -203,7 +203,7 @@ def main():
         except EOFError:
             return
         except (ValueError,OSError,http.client.HTTPException) as exc:
-            response={'ok':False,'error':str(exc) if isinstance(exc,ValueError) else type(exc).__name__+': операция не выполнена'}
+            response={'ok':False,'error':str(exc) if isinstance(exc,ValueError) else type(exc).__name__+': operation failed'}
         payload=json.dumps(response,ensure_ascii=False).encode('utf-8')
         sys.stdout.buffer.write(struct.pack('=I',len(payload))+payload)
         sys.stdout.buffer.flush()

@@ -3,7 +3,7 @@
   "browser": "Official Mozilla Firefox release",
   "browser_version": "158.0.1",
   "platform": "Linux x86_64",
-  "xpi_sha256": "af42d5417d613f54d3908206f3f7214e0038432b865ca559f7a6812e2af6098f",
+  "xpi_sha256": "05b9cc57be63cfee6468096072c4999847e51b8ff08b103894e633827b72b2e8",
   "checks": [
     "Signature enforcement enabled",
     "Unsigned XPI rejected for permanent installation",
@@ -18,7 +18,7 @@
     "signedState": 2,
     "temporarilyInstalled": false,
     "userDisabled": false,
-    "version": "3.0.0"
+    "version": "3.1.1"
   },
   "after_restart": {
     "appDisabled": false,
@@ -28,7 +28,7 @@
     "signedState": 2,
     "temporarilyInstalled": false,
     "userDisabled": false,
-    "version": "3.0.0"
+    "version": "3.1.1"
   },
   "installation": "Geckodriver permanent addon installation; no signature bypass or temporary install",
   "scope": "Installation/signature/persistence test; application functionality covered by browser and Android tests"

@@ -54,7 +54,8 @@ sudo --preserve-env=ANDROID_SDK_ROOT,ANDROID_AVD_HOME unshare --net \
 Use the PID in `/tmp/knock-android-lab/pid` to enter the same namespace in another
 terminal with `sudo nsenter -t PID -n bash`. All commands below run there, from
 the repository root. Wait for `adb shell getprop sys.boot_completed` to return
-`1`, install the Firefox APK with `adb install -r /path/firefox.apk`, and finish
+`1`. Ensure Wi-Fi is connected (`adb shell cmd wifi connect-network AndroidWifi open`
+for this AVD); cached pages can load even when Android has no network. Install the Firefox APK with `adb install -r /path/firefox.apk`, and finish
 its first-run welcome screens in the dedicated AVD. Native permission prompts
 are part of the real browser UI; temporary extension installation confirms its
 native “added” dialog, and the HTTPS status test grants the requested host access.

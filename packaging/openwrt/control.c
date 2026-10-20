@@ -1633,7 +1633,7 @@ static J *dispatch(J *db, J *request, const char *id, const char *source) {
     if (!strcmp(action, "browser-open") || !strcmp(action, "browser-close")) {
         browser_access(db, profile, request, source);
         J *r = own_status(db, id);
-        text(r, "message", !strcmp(action, "browser-open") ? "Доступ включён" : "Доступ выключен");
+        text(r, "message", !strcmp(action, "browser-open") ? "Access enabled" : "Access disabled");
         return r;
     }
     need(!strcmp(action, "configure"), "Unknown action");
@@ -1961,8 +1961,21 @@ static void http(void) {
                                             "profile-codec.js",
                                             "transport-config.js",
                                             "qr.js",
+                                            "i18n.js",
+                                            "ice-operation.js",
                                             "sw.js",
                                             "vendor/jsQR.js",
+                                            "icon-48.png",
+                                            "_locales/en/messages.json",
+                                            "_locales/ru/messages.json",
+                                            "_locales/de/messages.json",
+                                            "_locales/fr/messages.json",
+                                            "_locales/es/messages.json",
+                                            "_locales/pt_BR/messages.json",
+                                            "_locales/zh_CN/messages.json",
+                                            "_locales/ja/messages.json",
+                                            "_locales/ar/messages.json",
+                                            "_locales/hi/messages.json",
                                             "icon-180.png",
                                             "icon-192.png",
                                             "icon-512.png",
@@ -1981,6 +1994,7 @@ static void http(void) {
                            : !strcmp(ext, ".css") ? "text/css; charset=utf-8"
                            : !strcmp(ext, ".png") ? "image/png"
                            : !strcmp(ext, ".svg") ? "image/svg+xml"
+                           : !strcmp(ext, ".json") ? "application/json; charset=utf-8"
                                                   : "application/manifest+json";
         printf("Status: 200 OK\r\nContent-Type: %s\r\nContent-Length: %zu\r\nCache-Control: "
                "no-cache\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: "

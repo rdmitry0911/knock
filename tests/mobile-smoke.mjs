@@ -32,31 +32,31 @@ try {
   for(const engine of (process.env.BROWSER_ENGINES||'chromium,firefox').split(',')) {
     const browser=await playwright[engine].launch({headless:true,...(engine==='chromium'?{args:['--ignore-certificate-errors','--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream',`--use-file-for-fake-video-capture=${camera}`]}: {})});
     try {
-      const context=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:844},hasTouch:true});
+      const context=await browser.newContext({ignoreHTTPSErrors:true,userAgent:'Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/142.0.0.0 Mobile Safari/537.36',viewport:{width:390,height:844},hasTouch:true});
       const page=await context.newPage(),errors=[],requests=[];
       page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));
-      await page.goto(url);await page.locator('#message').filter({hasText:'Профиль импортирован'}).waitFor();
+      await page.goto(url);await page.locator('#message').filter({hasText:'Profile imported'}).waitFor();
       assert.equal(new URL(page.url()).hash,'');assert.ok(!requests.some(u=>u.includes(alice.secret)||u.includes('kc2_')));
-      await page.locator('#open').click();await page.locator('#state').filter({hasText:'Доступ включён'}).waitFor();
+      await page.locator('#open').click();await page.locator('#state').filter({hasText:'Access enabled'}).waitFor();
       assert.ok(await page.locator('#import-panel').isHidden());
-      await page.reload();await page.locator('#message').filter({hasText:'Нажмите ON'}).waitFor();
+      await page.reload();await page.locator('#message').filter({hasText:'Press ON'}).waitFor();
       assert.ok(await page.locator('#import-panel').isHidden());
-      await page.locator('#close').click();await page.locator('#state').filter({hasText:'Доступ выключен'}).waitFor();
+      await page.locator('#close').click();await page.locator('#state').filter({hasText:'Access disabled'}).waitFor();
       await page.locator('#add-profile').click();
       await page.locator('#qr-image').setInputFiles(resolve(home,'server/bob.png'));
-      await page.locator('#message').filter({hasText:'Профиль импортирован'}).waitFor();
+      await page.locator('#message').filter({hasText:'Profile imported'}).waitFor();
       assert.equal(await page.locator('#profiles option:checked').textContent(),'Bob');
-      await page.locator('#open').click();await page.locator('#state').filter({hasText:'Доступ включён'}).waitFor();
+      await page.locator('#open').click();await page.locator('#state').filter({hasText:'Access enabled'}).waitFor();
       await page.locator('#settings-panel summary').click();await page.locator('[name=idle_timeout]').fill('30');
-      await page.locator('#settings-form button').click();await page.locator('#message').filter({hasText:'Настройки сохранены'}).waitFor();
-      await page.locator('#profiles').selectOption({label:'Alice'});await page.locator('#message').filter({hasText:'Нажмите ON'}).waitFor();
-      await page.locator('#status').click();await page.locator('#state').filter({hasText:'Доступ выключен'}).waitFor();
+      await page.locator('#settings-form button').click();await page.locator('#message').filter({hasText:'Settings saved'}).waitFor();
+      await page.locator('#profiles').selectOption({label:'Alice'});await page.locator('#message').filter({hasText:'Press ON'}).waitFor();
+      await page.locator('#status').click();await page.locator('#state').filter({hasText:'Access disabled'}).waitFor();
       assert.equal(await page.locator('[name=idle_timeout]').inputValue(),'10');
       // Camera import uses a deterministic QR frame on Chromium's real media API.
       if(engine==='chromium') {
         await context.grantPermissions(['camera'],{origin:alice.server_url});
         await page.locator('#add-profile').click();await page.locator('#qr-start').click();
-        await page.locator('#message').filter({hasText:'Профиль импортирован'}).waitFor();
+        await page.locator('#message').filter({hasText:'Profile imported'}).waitFor();
         assert.ok(await page.locator('#qr-camera').isHidden());
         const result=await page.evaluate(async origin=>{
           const response=await fetch(origin+'/app/app.webmanifest');const manifest=await response.json();
@@ -68,18 +68,18 @@ try {
       }
       await page.locator('#add-profile').click();
       await page.locator('#qr-image').setInputFiles(resolve(home,'server/rules.png'));
-      await page.locator('#message').filter({hasText:'Профиль импортирован'}).waitFor();
-      await page.locator('#open').click();await page.locator('#state').filter({hasText:'Доступ включён'}).waitFor();
+      await page.locator('#message').filter({hasText:'Profile imported'}).waitFor();
+      await page.locator('#open').click();await page.locator('#state').filter({hasText:'Access enabled'}).waitFor();
       assert.equal(await page.locator('[name=ports]').inputValue(),'');
       assert.ok((await page.locator('[name=rules]').inputValue()).split(',').includes('ping'));
       assert.match(await page.locator('#policy').textContent(),/udp_range/);
       await page.locator('#settings-panel').evaluate(el=>{el.open=true;});
       await page.locator('[name=rules]').fill('ping,udp_range');
       await page.locator('#settings-form button').click();
-      await page.locator('#message').filter({hasText:'Настройки сохранены'}).waitFor();
+      await page.locator('#message').filter({hasText:'Settings saved'}).waitFor();
       assert.equal(await page.locator('[name=rules]').inputValue(),'ping,udp_range');
-      await page.locator('#open').click();await page.locator('#state').filter({hasText:'Доступ включён'}).waitFor();
-      await page.locator('#close').click();await page.locator('#state').filter({hasText:'Доступ выключен'}).waitFor();
+      await page.locator('#open').click();await page.locator('#state').filter({hasText:'Access enabled'}).waitFor();
+      await page.locator('#close').click();await page.locator('#state').filter({hasText:'Access disabled'}).waitFor();
       assert.deepEqual(errors,[]);
       const response=await context.request.get(alice.server_url+'/app/../settings.json');assert.equal(response.status(),404);
       console.log(`PASS: ${engine} mobile viewport: QR link + PNG import, remembered profiles, automatic IP, ON/OFF, named rule selection with empty TCP ports, isolated settings, no secret in HTTP URLs`);
@@ -97,12 +97,12 @@ try {
     args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`,'--ignore-certificate-errors']});
   try {
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
-    await page.goto(`chrome-extension://${id}/app.html`);await page.locator('#message').filter({hasText:'Импортируйте QR'}).waitFor();
-    await page.locator('#qr-image').setInputFiles(resolve(home,'server/alice.png'));
-    await page.locator('#message').filter({hasText:'Профиль импортирован'}).waitFor();
-    await page.locator('#open').click();await page.locator('#state').filter({hasText:'Доступ включён'}).waitFor();
-    await page.locator('#close').click();await page.locator('#state').filter({hasText:'Доступ выключен'}).waitFor();
-    assert.deepEqual(errors,[]);console.log('PASS: Chromium HTTPS extension with service-worker storage and QR import, no native helper');
+    await page.goto(`chrome-extension://${id}/app.html`);await page.locator('#message').filter({hasText:'Import a server-issued JSON profile'}).waitFor();
+    await page.locator('#import-file').setInputFiles(resolve(home,'server/alice.json'));
+    await page.locator('#message').filter({hasText:'Profile imported'}).waitFor();
+    await page.locator('#open').click();await page.locator('#state').filter({hasText:'Access enabled'}).waitFor();
+    await page.locator('#close').click();await page.locator('#state').filter({hasText:'Access disabled'}).waitFor();
+    assert.deepEqual(errors,[]);console.log('PASS: Chromium HTTPS extension with service-worker storage and JSON import, no native helper');
   } finally {await context.close();}
 } finally {
   if(fixture){fixture.kill();await new Promise(resolve=>fixture.once('exit',resolve));}

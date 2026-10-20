@@ -24,9 +24,9 @@ try {
   }
   const page=context.pages().at(-1),errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('request',q=>{if(q.url().includes('/v1/control'))apiRequests.push(q.url());});
-  await page.locator('#message').filter({hasText:'Импортируйте QR'}).waitFor();
+  await page.locator('#message').filter({hasText:engine==='chromium'?'Import a server-issued JSON profile':'Import your server-issued QR'}).waitFor();
   await page.locator('#import-file').setInputFiles(config.bundle_file);
-  await page.locator('#message').filter({hasText:'Профиль импортирован'}).waitFor();
+  await page.locator('#message').filter({hasText:'Profile imported'}).waitFor();
   await page.evaluate(async()=>{await import('./ice-client.js');});
   console.log(JSON.stringify({ready:true}));
   async function tcp(keep=false) {
@@ -37,9 +37,11 @@ try {
   for await(const line of readline.createInterface({input:process.stdin})) {
     const q=JSON.parse(line);let result;
     try {
-      if(q.op==='on'||q.op==='off') {
-        await page.locator(q.op==='on'?'#open':'#close').click();
-        await page.locator('#message').filter({hasText:'UDP-knock '+(q.op==='on'?'ON':'OFF')+' отправлен'}).waitFor({timeout:12000});
+      if(['on','off','on-detached','off-detached'].includes(q.op)) {
+        const action=q.op.startsWith('on')?'on':'off';
+        await page.locator(action==='on'?'#open':'#close').click();
+        if(q.op.endsWith('-detached')){const url=page.url().replace('/app.html','/popup.html');await page.waitForTimeout(100);await page.goto('about:blank');await page.waitForTimeout(5500);await page.goto(url);await page.locator('#message').filter({hasText:'Press ON'}).waitFor();}
+        else await page.locator('#message').filter({hasText:'UDP knock '+(action==='on'?'ON':'OFF')+' sent'}).waitFor({timeout:12000});
         result={sent:true,apiRequests:apiRequests.length,errors,debug:await page.evaluate(()=>window.iceDebug??[])};
       } else if(q.op==='tcp')result={reachable:await tcp()};
       else if(q.op==='hold')result={reachable:await tcp(true)};
