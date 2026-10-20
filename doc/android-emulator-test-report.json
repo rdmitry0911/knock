@@ -1,8 +1,8 @@
 {
   "result": "PASS",
   "tested_date": "2026-10-20",
-  "source_commit": "a8800eae591eacb3a58c12ddf4bafc85b9e3ea42",
-  "release": "v3.0.0-r6",
+  "source_commit": "41ed8853aa36aee0dbee0814315442b6ef4c8223",
+  "release": "v3.1.1",
   "device": {
     "type": "Android emulator with KVM",
     "android": "15",
@@ -30,6 +30,7 @@
     {
       "result": "PASS",
       "browser": "Chrome Android",
+      "interface_language": "en",
       "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
       "checks": [
         "QR enrollment URL imported and removed from URL; profile survives reload",
@@ -47,6 +48,7 @@
       "result": "PASS",
       "browser": "Firefox Android",
       "mode": "extension",
+      "interface_language": "en",
       "user_agent": "Mozilla/5.0 (Android 15; Mobile; rv:158.0) Gecko/158.0 Firefox/158.0",
       "checks": [
         "Original unsigned release XPI temporarily installed in real Firefox Android; QR text imported",
@@ -58,13 +60,14 @@
       ],
       "api_requests_during_ice": 0,
       "knock_udp_listener": false,
-      "certificate_exception": "Self-signed fixture certificate accepted only by this disposable WebDriver profile",
+      "certificate_exception": "Fixture CA installed only in the disposable Firefox NSS profile; WebDriver acceptInsecureCerts also enabled",
       "extension_installation": "temporary debugging install; permanent Firefox installation still requires Mozilla signature"
     },
     {
       "result": "PASS",
       "browser": "Firefox Android",
       "mode": "pwa",
+      "interface_language": "en",
       "user_agent": "Mozilla/5.0 (Android 15; Mobile; rv:158.0) Gecko/158.0 Firefox/158.0",
       "checks": [
         "QR enrollment link imported and secret fragment removed",
@@ -81,5 +84,12 @@
       "certificate_exception": "Fixture CA installed only in the disposable Firefox NSS profile; WebDriver acceptInsecureCerts also enabled",
       "extension_installation": null
     }
+  ],
+  "unsigned_xpi_sha256": "bbf876447d5370714dbcb5e6851b40af55f4ca13f43fb42881d44b488e8e7c79",
+  "signed_xpi_sha256": "05b9cc57be63cfee6468096072c4999847e51b8ff08b103894e633827b72b2e8",
+  "signed_payload_matches_tested_unsigned": true,
+  "checks_added_in_3_1_1": [
+    "Localized UI and current-version offline application cache",
+    "Firefox Android ICE runs in extension background document"
   ]
 }

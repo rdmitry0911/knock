@@ -1,7 +1,7 @@
 # Android emulator verification
 
-Verified on 2026-10-20 against release `v3.0.0-r6`, production commit
-`a8800eae591eacb3a58c12ddf4bafc85b9e3ea42`:
+Verified on 2026-10-20 against release `v3.1.1`, production commit
+`41ed8853aa36aee0dbee0814315442b6ef4c8223`:
 
 | Android 15 / API 35 / x86_64, KVM | Result |
 |---|---|
@@ -17,7 +17,7 @@ the new revision for ICE. Each ICE stage issued zero API requests and had no
 listening knock UDP socket. Android browser sandboxing stayed enabled.
 See the [machine-readable report](android-emulator-test-report.json) and
 supplemental `knock-control-android-test-evidence.zip` on the
-[release page](https://github.com/rdmitry0911/knock/releases/tag/v3.0.0-r6).
+[release page](https://github.com/rdmitry0911/knock/releases/tag/v3.1.1).
 
 The Android checks use a real Android AVD and Android APKs, with the native
 packet daemon, signed controller callbacks, iptables/ipset and protected HTTP
