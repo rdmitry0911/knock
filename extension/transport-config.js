@@ -1,2 +1,1 @@
-// Packaging selects 'native' for desktop or 'browser' for mobile/browser-only.
-export const MODE = 'native';
+export const MODE = 'browser';

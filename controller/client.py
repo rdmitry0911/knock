@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""CLI using the same saved profile and transport as the browser extension."""
+"""Standalone TCP/UDP CLI for server-issued profiles."""
 import argparse
 import getpass
 import json

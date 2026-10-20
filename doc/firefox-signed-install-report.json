@@ -1,0 +1,35 @@
+{
+  "result": "PASS",
+  "browser": "Official Mozilla Firefox release",
+  "browser_version": "158.0.1",
+  "platform": "Linux x86_64",
+  "xpi_sha256": "af42d5417d613f54d3908206f3f7214e0038432b865ca559f7a6812e2af6098f",
+  "checks": [
+    "Signature enforcement enabled",
+    "Unsigned XPI rejected for permanent installation",
+    "Mozilla-signed browser-only XPI permanently installed",
+    "Extension active and signature valid after restarting Firefox with the same profile"
+  ],
+  "before_restart": {
+    "appDisabled": false,
+    "expectedSignedState": 2,
+    "id": "knock-control-mobile@local",
+    "isActive": true,
+    "signedState": 2,
+    "temporarilyInstalled": false,
+    "userDisabled": false,
+    "version": "3.0.0"
+  },
+  "after_restart": {
+    "appDisabled": false,
+    "expectedSignedState": 2,
+    "id": "knock-control-mobile@local",
+    "isActive": true,
+    "signedState": 2,
+    "temporarilyInstalled": false,
+    "userDisabled": false,
+    "version": "3.0.0"
+  },
+  "installation": "Geckodriver permanent addon installation; no signature bypass or temporary install",
+  "scope": "Installation/signature/persistence test; application functionality covered by browser and Android tests"
+}

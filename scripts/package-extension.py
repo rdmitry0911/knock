@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Build desktop/native, mobile/HTTPS and universal web application artifacts."""
+"""Build one ICE/HTTPS extension per browser and the universal web application."""
 import json
 from pathlib import Path
 import shutil
@@ -8,6 +8,11 @@ import zipfile
 root = Path(__file__).resolve().parents[1]
 dist = root / 'dist'
 dist.mkdir(exist_ok=True)
+# Remove retired helper variants so a reused dist cannot ship them accidentally.
+for retired in ('chromium', 'firefox'):
+    shutil.rmtree(dist / retired, ignore_errors=True)
+    for suffix in ('.zip', '.unsigned.xpi'):
+        (dist / f'knock-control-{retired}{suffix}').unlink(missing_ok=True)
 source = root / 'extension'
 web_files = ('app.html','app.js','bridge.js','browser-client.js','ice-client.js','profile-codec.js',
              'transport-config.js','qr.js','sw.js','style.css','app.webmanifest',
@@ -27,7 +32,7 @@ def gecko(ident, mobile=False):
         value['gecko_android'] = {'strict_min_version':'142.0'}
     return value
 
-for variant in ('chromium','firefox','chromium-browser','firefox-mobile','web-app'):
+for variant in ('chromium-browser','firefox-mobile','web-app'):
     output = dist / variant
     if output.exists():
         shutil.rmtree(output)
@@ -49,9 +54,7 @@ for variant in ('chromium','firefox','chromium-browser','firefox-mobile','web-ap
     manifest = json.loads((source / 'manifest.json').read_text())
     manifest['version'] = '3.0.0'
     manifest['icons'] = icons
-    if variant == 'firefox':
-        manifest['browser_specific_settings'] = gecko('knock-control@local')
-    elif variant == 'chromium-browser':
+    if variant == 'chromium-browser':
         manifest.update({'permissions':['storage'], 'optional_host_permissions':['https://*/*'],
             'background':{'service_worker':'background.js','type':'module'},
             'action':{'default_title':'Knock Control'},

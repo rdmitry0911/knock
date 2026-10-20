@@ -1,11 +1,10 @@
 ## knock: A port-knocking implementation
 
-Download browser extensions, the web app and architecture-specific OpenWrt APKs from [release v3.0.0-r6](https://github.com/rdmitry0911/knock/releases/tag/v3.0.0-r6). **Firefox XPI archives are unsigned and cannot be permanently installed in standard Firefox.** Chrome/Edge ZIPs require unpacking and developer mode. See [installation and Mozilla signing instructions (Russian)](doc/BROWSER_INSTALLATION_RU.md).
+Download browser extensions, the web app and architecture-specific OpenWrt APKs from [release v3.0.0-r6](https://github.com/rdmitry0911/knock/releases/tag/v3.0.0-r6). The Mozilla-signed `knock-control-firefox-3.0.0.xpi` supports desktop Firefox and Firefox Android. Chrome/Edge ZIPs require unpacking and developer mode. See [installation and Mozilla signing instructions (Russian)](doc/BROWSER_INSTALLATION_RU.md).
 
 This fork includes **Knock Control**, a controlled emergency access mechanism for
 sensitive services normally blocked from the public internet. It includes a
-Chrome/Firefox extension, mobile QR import, an installable web app, a Linux native
-bridge and an HTTPS controller for server-issued client credentials. Each credential
+Chrome/Firefox extension, mobile QR import, an installable web app and an HTTPS controller for server-issued client credentials. Each credential
 has its own rule policy: named TCP/UDP ports and ranges, ICMP, routed access and DNAT forwarding. Grants and traffic-based idle timeouts are independent
 for each source IPv4, including clients sharing the same credential. New managed configurations use RFC 6238 TOTP
 (Google Authenticator) and an authenticated UDP confirmation. See
@@ -29,7 +28,7 @@ uses WebRTC ICE connectivity checks to deliver an HMAC-SHA256 signed ON/OFF toke
 inside a STUN USERNAME. The daemon captures it with libpcap on the profile's base
 UDP port: no UDP listener, STUN responder or reachable HTTPS API is required for
 ON/OFF. HTTPS remains available for status, settings and the legacy browser mode.
-The native bridge retains its TCP/UDP sequence transport.
+One ICE/HTTPS extension is supplied for each browser family, for both desktop and mobile use. No local helper is required.
 
 Re-export and import the profile after updating the server. Select the transport
 under connection settings; older profiles keep HTTPS until re-imported. The ICE
