@@ -1,0 +1,5 @@
+# Inactive until knock-control init / issue / activate.
+chain knock_control_input { }
+chain knock_control_output { }
+chain knock_control_forward { }
+chain knock_control_prerouting { type nat hook prerouting priority -101; policy accept; }

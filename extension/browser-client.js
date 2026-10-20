@@ -1,4 +1,5 @@
-// Browser-only transport: Web Crypto + HTTPS. No native host or raw sockets.
+// Browser authentication and storage. ICE networking runs in the UI page;
+// MV3 service workers have Web Crypto but no RTCPeerConnection.
 import { validateBundle,decodeEnrollment } from './profile-codec.js';
 const browserAPI=globalThis.browser??globalThis.chrome;
 const extension=!!browserAPI?.runtime?.id;
@@ -38,6 +39,12 @@ export async function makeProof(bundle,action,source,code='',now=Date.now()/1000
 export async function apiSignature(secret,timestamp,nonce,body) {
   const digest=toHex(new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(body))));
   return toHex(await hmac(secret,encoder.encode(`knock-control:api:v2:POST:/v1/control:${timestamp}:${nonce}:${digest}`)));
+}
+export async function makeIceToken(bundle,action,source,now=Date.now(),nonce=crypto.getRandomValues(new Uint8Array(16)),issued=now) {
+  if(!['open','close'].includes(action)||typeof source!=='string'||!/^\d{1,3}(\.\d{1,3}){3}$/.test(source)||source.split('.').some(n=>Number(n)>255)||!(nonce instanceof Uint8Array)||nonce.length!==16)throw new Error('Некорректный ICE-запрос');
+  const hex=(n,size)=>BigInt(n).toString(16).padStart(size,'0');
+  const prefix='KNI1'+bundle.profile_id+(action==='open'?'O':'C')+hex(bundle.revision,8)+hex(Math.floor(now/30000),16)+hex(Math.floor(issued),16)+toHex(nonce);
+  return prefix+toHex(await hmac(bundle.secret,encoder.encode('knock-control:ice:v1:'+prefix+':'+(bundle.settings.ip_protection?source:'-'))));
 }
 async function remote(bundle,action,fields={}) {
   if(!extension&&bundle.server_url!==location.origin)throw new Error('Откройте веб-приложение на сервере этого профиля: '+bundle.server_url+'/app/');
@@ -88,7 +95,18 @@ export async function dispatch(message) {
   let bundle=store.active?validateBundle(store.profiles[store.active]):null;
   if(!bundle)throw new Error('Сначала импортируйте выданный сервером QR');
   if(action==='pairing')return {ok:true,secret:bundle.secret,uri:'otpauth://totp/'+encodeURIComponent('Knock Control:'+bundle.name)+'?'+new URLSearchParams({secret:bundle.secret,issuer:'Knock Control',algorithm:'SHA1',digits:'6',period:'30'})};
-  if(action==='save')return {ok:true}; // API observes the authoritative source IPv4 automatically.
+  if(action==='save-transport') {
+    if(!message.connection||typeof message.connection!=='object'||Object.keys(message.connection).some(k=>!['transport','ice_source','ice_host','stun_server'].includes(k)))throw new Error('Некорректные настройки подключения');
+    bundle=validateBundle({...bundle,...message.connection});store.profiles[store.active]=bundle;await writeStore(store);return {ok:true,profile:safe(bundle)};
+  }
+  if(action==='ice-proof') {
+    const now=Date.now(),issued=Math.max(now,(bundle.last_ice_ms??0)+1);
+    if(message.code){let valid=false;for(const step of [Math.floor(now/30000),Math.floor(now/30000)-1,Math.floor(now/30000)+1])if(await totp(bundle.secret,step*30)===message.code)valid=true;if(!valid)throw new Error('Код Authenticator неверен или истёк');}
+    const token=await makeIceToken(bundle,message.operation,message.source,now,crypto.getRandomValues(new Uint8Array(16)),issued);
+    bundle.last_ice_ms=issued;store.profiles[store.active]=bundle;await writeStore(store);
+    return {ok:true,token,host:bundle.ice_host||bundle.knock_host,port:bundle.settings.base,profile:safe(bundle)};
+  }
+  if(action==='save')return {ok:true};
   if(!['status','configure','open','close'].includes(action))throw new Error('Неизвестная операция');
   let response=await remote(bundle,'status');bundle=merge(bundle,response);
   if(action==='configure')response=await remote(bundle,'configure',{settings:message.settings,revision:bundle.revision});

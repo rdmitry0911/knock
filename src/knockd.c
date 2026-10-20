@@ -64,6 +64,7 @@
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
 #include <stdint.h>
+#include "ice_auth.h"
 
 
 #if __APPLE__
@@ -96,6 +97,8 @@ typedef struct opendoor {
 	char *target;
 	time_t seq_timeout;
 	char *start_command;
+    char *ice_command;
+    unsigned ice_revision;
 	time_t cmd_timeout;
 	char *stop_command;
 	flag_stat flag_fin;
@@ -795,6 +798,13 @@ int parseconfig(char *configfile)
                         if(parse_uint(ptr, 1, 3600, &timeout)) return 1;
                         door->seq_timeout = timeout;
 						dprint("config: %s: seq_timeout: %d\n", door->name, door->seq_timeout);
+                    } else if(!strcmp(key,"ICE_REVISION")) {
+                        char *end; unsigned long revision=strtoul(ptr,&end,10);
+                        if(!*ptr || *end || revision<1 || revision>2147483647UL) return 1;
+                        door->ice_revision=(unsigned)revision;
+                    } else if(!strcmp(key,"ICE_COMMAND")) {
+                        free(door->ice_command); door->ice_command=strdup(ptr);
+                        if(!door->ice_command) return 1;
 					} else if(!strcmp(key, "START_COMMAND") || !strcmp(key, "COMMAND")) {
 						door->start_command = malloc(sizeof(char) * (strlen(ptr)+1));
 						if(door->start_command == NULL) {
@@ -1323,6 +1333,7 @@ void free_door(opendoor_t *door)
 	if(door) {
 		free(door->target);
 		free(door->start_command);
+        free(door->ice_command);
 		free(door->stop_command);
 		if (door->one_time_sequences_fd) {
 			fclose(door->one_time_sequences_fd);
@@ -1745,6 +1756,35 @@ void sniff(u_char* arg, const struct pcap_pkthdr* hdr, const u_char* packet)
 
     if(udp && dport) {
         size_t payload_offset = offset + ip->ip_hl*4U + sizeof(struct udphdr);
+        size_t udp_len=ntohs(udp->uh_ulen);
+        if(udp_len>=sizeof(struct udphdr)+20 && udp_len<=sizeof(struct udphdr)+1024 &&
+           hdr->caplen>=payload_offset+udp_len-sizeof(struct udphdr) &&
+           ntohs(ip->ip_len)==ip->ip_hl*4U+udp_len) {
+            char token[KNC_ICE_LENGTH+1];
+            if(knc_ice_stun(packet+payload_offset,udp_len-sizeof(struct udphdr),token)) {
+                for(PMList *entry=doors;entry;entry=entry->next) {
+                    opendoor_t *door=entry->data;
+                    if(!door->totp_enabled || !door->ice_command || !door->ice_revision ||
+                       dport!=door->otp_port_range || target_strcmp(dstIP,door->target) ||
+                       !knc_ice_verify(token,door->seed,door->name,door->ice_revision,srcIP,door->ip_protection,pkt_secs)) continue;
+                    unsigned char proof[60]={0}; uint64_t step=0;
+                    knc_hex(token+37,16,&step);
+                    for(unsigned i=0;i<32;i++) { uint64_t v=0;knc_hex(token+101+i*2,2,&v);proof[28+i]=(unsigned char)v; }
+                    if(!reserve_confirmation(proof,(long long)step,pkt_secs)) return;
+                    if(fork()==0) {
+                        char command[PATH_MAX],complete[PATH_MAX];
+                        setsid();
+                        if(parse_cmd(command,sizeof(command),door->ice_command,srcIP)>=sizeof(command)) _exit(1);
+                        int n=snprintf(complete,sizeof(complete),"%s %s",command,token);
+                        if(n<0 || (size_t)n>=sizeof(complete)) _exit(1);
+                        /* Do not log a still-live authentication token. */
+                        execl("/bin/sh","sh","-c",complete,(char *)NULL);_exit(1);
+                    }
+                    return;
+                }
+                return; /* ICE probes never advance a legacy knock sequence. */
+            }
+        }
         if(ntohs(udp->uh_ulen) == sizeof(struct udphdr)+60 &&
            hdr->caplen >= payload_offset+60 && ntohs(ip->ip_len) >= ip->ip_hl*4U+sizeof(struct udphdr)+60) {
             const unsigned char *proof = packet+payload_offset;

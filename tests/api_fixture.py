@@ -23,13 +23,20 @@ with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[
 db=server.init_server('127.0.0.1','lo',port,'127.0.0.1')
 a=server.issue(db,'Alice',[23456],[23456,23458],10,60)
 b=server.issue(db,'Bob',[23457],[23457],20,120)
+db['rules']={'ping':{'type':'input','protocol':'icmp'},
+             'udp_range':{'type':'input','protocol':'udp','ports':['31000-31002']}}
+phone=server.issue(db,'Rules',[],[],10,60,rules=['ping'],allowed_rules=['ping','udp_range'])
 db['activated']=True
+def legacy_bundle(database,ident):
+    bundle=server.export_bundle(database,ident);bundle.pop('ice_version',None);return bundle
 common.atomic_write(server.CONFIG,json.dumps(db))
-common.atomic_write(tmp/'alice.json',json.dumps(server.export_bundle(db,a)))
-common.atomic_write(tmp/'bob.json',json.dumps(server.export_bundle(db,b)))
-qr_codec.write_qr(server.export_bundle(db,a),tmp/'alice.png')
-qr_codec.write_qr(server.export_bundle(db,b),tmp/'bob.png')
-common.atomic_write(tmp/'alice-url.txt',qr_codec.enrollment_url(server.export_bundle(db,a)))
+common.atomic_write(tmp/'alice.json',json.dumps(legacy_bundle(db,a)))
+common.atomic_write(tmp/'bob.json',json.dumps(legacy_bundle(db,b)))
+common.atomic_write(tmp/'rules.json',json.dumps(legacy_bundle(db,phone)))
+qr_codec.write_qr(legacy_bundle(db,phone),tmp/'rules.png')
+qr_codec.write_qr(legacy_bundle(db,a),tmp/'alice.png')
+qr_codec.write_qr(legacy_bundle(db,b),tmp/'bob.png')
+common.atomic_write(tmp/'alice-url.txt',qr_codec.enrollment_url(legacy_bundle(db,a)))
 api.APP_ROOT=ROOT/'dist/web-app'
 original_run=server.run
 grants=set()

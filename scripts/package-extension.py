@@ -9,7 +9,7 @@ root = Path(__file__).resolve().parents[1]
 dist = root / 'dist'
 dist.mkdir(exist_ok=True)
 source = root / 'extension'
-web_files = ('app.html','app.js','bridge.js','browser-client.js','profile-codec.js',
+web_files = ('app.html','app.js','bridge.js','browser-client.js','ice-client.js','profile-codec.js',
              'transport-config.js','qr.js','sw.js','style.css','app.webmanifest',
              'icon.svg','icon-180.png','icon-192.png','icon-512.png','vendor/jsQR.js','vendor/jsQR.LICENSE')
 icons = {str(size):f'icon-{size}.png' for size in (48,96,128)}

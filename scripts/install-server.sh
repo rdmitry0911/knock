@@ -8,7 +8,7 @@ done
 if [ ! -x ./knockd ]; then echo 'Build knockd with scripts/build.sh first' >&2; exit 1; fi
 install -d -m 755 /usr/local/lib/knock-control
 install -d -m 700 /etc/knock-control
-install -m 644 controller/common.py controller/server.py controller/api.py controller/qr_codec.py /usr/local/lib/knock-control/
+install -m 644 controller/common.py controller/server.py controller/api.py controller/qr_codec.py controller/rules.py controller/iptables_rules.py /usr/local/lib/knock-control/
 install -d -m 755 /usr/local/lib/knock-control/vendor
 install -m 644 controller/vendor/qrcodegen.py /usr/local/lib/knock-control/vendor/
 python3 scripts/package-extension.py

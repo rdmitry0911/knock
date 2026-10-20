@@ -4,9 +4,9 @@
 <section><h2>Добавить выданный секрет</h2><label>Файл подключения от сервера<input id="import-file" type="file" accept=".json,application/json"></label><div class="actions"><button id="qr-start" type="button">Сканировать QR</button><label class="file-button">Изображение QR<input id="qr-image" type="file" accept="image/*"></label></div><div id="qr-camera" hidden><video id="qr-video" autoplay playsinline muted></video><button id="qr-stop" type="button">Закрыть камеру</button></div><p class="muted">Импортируйте выданный сервером JSON-файл. Он содержит секрет: передавайте и храните его как пароль.</p></section>
 <section><label>Активный профиль<select id="profiles"><option value="">Сначала импортируйте файл</option></select></label><p id="identity" class="muted"></p><button id="refresh" type="button">Получить настройки с сервера</button></section>
 <form id="profile"><section><h2>Мой адрес</h2><label>Внешний IPv4<input name="public_ip" placeholder="Определить при подключении к API"></label><p class="muted">Сервер определяет IPv4 при запросе статуса. Если knock-пакеты идут другим маршрутом, укажите адрес вручную.</p><button type="button" id="save-ip">Сохранить адрес</button></section>
-<section><h2>Настройки этого секрета</h2><p id="policy" class="muted">Загрузите настройки с сервера.</p><div class="grid">
-<label>Защищённые TCP-порты через запятую<input name="ports" required></label>
-<label>Отключать после простоя, секунд<input name="idle_timeout" type="number" min="10" max="86400" required></label>
+<section><h2>Настройки этого секрета</h2><p id="rule-details" class="muted"></p><p id="policy" class="muted">Загрузите настройки с сервера.</p><div class="grid">
+<label>Дополнительные TCP-порты через запятую<input name="ports"></label>
+<label>Правила профиля через запятую<input name="rules" placeholder="ssh_lan,udp_service,ping" autocomplete="off" spellcheck="false"></label><label>Отключать после простоя, секунд<input name="idle_timeout" type="number" min="10" max="86400" required></label>
 <label class="span">Протоколы последовательности через запятую<input name="protocols" required></label>
 <label>Таймаут последовательности, секунд<input name="seq_timeout" type="number" min="1" max="60" required></label>
 </div><label class="check"><input name="ip_protection" type="checkbox"> Привязывать запрос к моему IPv4</label>

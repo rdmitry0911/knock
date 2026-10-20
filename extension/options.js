@@ -17,8 +17,8 @@ function display(profile) {
   document.querySelector('#identity').textContent = profile ? `${profile.name} · ${profile.server_url} · ${profile.profile_id}` : 'Нет импортированных профилей';
   if (!profile) return;
   field('public_ip').value = profile.public_ip;
-  for (const name of ['ports', 'idle_timeout', 'protocols', 'seq_timeout', 'ip_protection']) {
-    const value = profile.settings[name];
+  for (const name of ['rules', 'ports', 'idle_timeout', 'protocols', 'seq_timeout', 'ip_protection']) {
+    const value = profile.settings[name] ?? [];
     if (field(name).type === 'checkbox') field(name).checked = value;
     else field(name).value = Array.isArray(value) ? value.join(',') : value;
   }
@@ -40,8 +40,9 @@ async function refresh() {
   const result = await request('status');
   display(result.profile);
   const policy = result.policy;
-  document.querySelector('#policy').textContent = `Разрешённые порты: ${policy.allowed_ports.join(', ')}. Максимальный простой: ${policy.max_idle_timeout} с. ${policy.can_configure ? '' : 'Изменения настроек запрещены администратором.'}`;
+  document.querySelector('#policy').textContent = `Разрешённые TCP-порты: ${policy.allowed_ports.join(', ') || 'нет'}. Правила: ${(policy.allowed_rules??[]).join(', ') || 'нет'}. Максимальный простой: ${policy.max_idle_timeout} с. ${policy.can_configure ? '' : 'Изменения настроек запрещены администратором.'}`;
   field('idle_timeout').max = policy.max_idle_timeout;
+  document.querySelector('#rule-details').textContent = Object.entries(result.rules??{}).map(([name,r])=>`${name}: ${r.type} ${r.protocol} ${(r.ports??[r.icmp_type]).join(', ')}${r.dest_ip?' → '+r.dest_ip+(r.dest_port?':'+r.dest_port:''):''}`).join('; ');
   message.textContent = result.daemon_running ? 'Настройки вашего секрета получены с сервера.' : 'Профиль получен. Служба knockd недоступна; обратитесь к администратору.';
 }
 document.querySelector('#import-file').addEventListener('change', event => busy(async () => {
@@ -67,10 +68,11 @@ form.addEventListener('submit', event => {
   event.preventDefault();
   busy(async () => {
     await request('save', { public_ip: field('public_ip').value.trim() });
-    const settings = { ports: field('ports').value.split(',').map(p => Number(p.trim())),
+    const settings = { ports: field('ports').value.split(',').filter(p=>p.trim()).map(p => Number(p.trim())),
       idle_timeout: Number(field('idle_timeout').value), seq_timeout: Number(field('seq_timeout').value),
       protocols: field('protocols').value.split(',').map(p => p.trim().toLowerCase()),
       ip_protection: field('ip_protection').checked };
+    if(current.settings.rules!==undefined||field('rules').value.trim())settings.rules=field('rules').value.split(',').map(n=>n.trim()).filter(Boolean);
     const result = await request('configure', { settings });
     display(result.profile);
     message.textContent = 'Настройки этого секрета применены. Для доступа нажмите «Вкл».';

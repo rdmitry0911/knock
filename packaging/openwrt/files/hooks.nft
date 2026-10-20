@@ -1,0 +1,5 @@
+# Prepend before fw4's loopback and established-flow accepts. OFF must also
+# stop an already established connection, including local diagnostic clients.
+insert rule inet fw4 input jump knock_control_input
+insert rule inet fw4 output jump knock_control_output
+insert rule inet fw4 forward jump knock_control_forward

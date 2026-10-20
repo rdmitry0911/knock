@@ -18,7 +18,7 @@ if args.chrome_id and not re.fullmatch('[a-p]{32}', args.chrome_id):
 root = Path(__file__).resolve().parents[1]
 destination = Path.home() / '.local/lib/knock-control'
 destination.mkdir(parents=True, exist_ok=True, mode=0o700)
-for file in ('common.py', 'native.py', 'qr_codec.py'):
+for file in ('common.py', 'native.py', 'qr_codec.py', 'rules.py'):
     shutil.copy2(root / 'controller' / file, destination / file)
 wrapper = destination / 'native-host'
 wrapper.write_text('#!/bin/sh\nexec /usr/bin/python3 -I ' + shlex.quote(str(destination / 'native.py')) + '\n')

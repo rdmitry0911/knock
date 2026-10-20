@@ -1,14 +1,68 @@
 ## knock: A port-knocking implementation
 
+Download browser extensions, the web app and architecture-specific OpenWrt APKs from [release v3.0.0-r6](https://github.com/rdmitry0911/knock/releases/tag/v3.0.0-r6). Firefox XPI archives are unsigned.
+
 This fork includes **Knock Control**, a controlled emergency access mechanism for
 sensitive services normally blocked from the public internet. It includes a
 Chrome/Firefox extension, mobile QR import, an installable web app, a Linux native
 bridge and an HTTPS controller for server-issued client credentials. Each credential
-has its own port policy. Grants and traffic-based idle timeouts are independent
+has its own rule policy: named TCP/UDP ports and ranges, ICMP, routed access and DNAT forwarding. Grants and traffic-based idle timeouts are independent
 for each source IPv4, including clients sharing the same credential. New managed configurations use RFC 6238 TOTP
 (Google Authenticator) and an authenticated UDP confirmation. See
 [setup, protocol and verification instructions in Russian](README_RU.md).
 Legacy `sequence =` and `otp =` formats remain available.
+
+An OpenWrt 25.12 package recipe and SDK build script are included in
+`packaging/openwrt` and `scripts/build-openwrt.py`. OpenWrt runs a native C
+controller and packet daemon, a dedicated uhttpd HTTPS instance, procd and
+firewall4/nftables. Settings and profiles use the standard UCI package
+`/etc/config/knock-control`, with `uci commit` and init.d reload support.
+It does not install Python. Schema-2 JSON configurations migrate automatically;
+client credentials and the SQLite replay journal are preserved. Ordinary Linux installations
+retain the Python controller and iptables/ipset.
+See the OpenWrt section of README_RU.md for APK installation and QEMU verification.
+
+### Browser ON/OFF without a management listener
+
+Newly exported profiles advertise `ice_version: 1`. The browser extension/web app
+uses WebRTC ICE connectivity checks to deliver an HMAC-SHA256 signed ON/OFF token
+inside a STUN USERNAME. The daemon captures it with libpcap on the profile's base
+UDP port: no UDP listener, STUN responder or reachable HTTPS API is required for
+ON/OFF. HTTPS remains available for status, settings and the legacy browser mode.
+The native bridge retains its TCP/UDP sequence transport.
+
+Re-export and import the profile after updating the server. Select the transport
+under connection settings; older profiles keep HTTPS until re-imported. The ICE
+target must be a numeric IPv4 (a local override is provided for DNS profiles).
+Public source discovery uses `stun:stun.cloudflare.com:3478`, or a configured STUN;
+it receives no profile secret or signed command. A manual public IPv4 avoids STUN.
+UDP and protected service traffic must leave through the same public IPv4.
+WebRTC/UDP must be permitted by the browser and network. No automatic HTTPS fallback
+is performed. Sending is unacknowledged; verify access through the protected service.
+Nonces and per-IP command ordering persist in SQLite across daemon restarts.
+An extension has its application files locally; the PWA needs prior HTTPS installation.
+See the Russian guide for setup, protocol and current verification results.
+
+### Named firewall rules
+
+The same commands work on OpenWrt (native C/UCI/nftables) and Linux (iptables/ipset):
+
+```sh
+knock-control rule-set ssh_lan --type dnat --protocol tcp --ports 2222 --dest-ip 192.168.1.10 --dest-port 22
+knock-control rule-set udp_range --type input --protocol udp --ports 11000-11100
+knock-control rule-set ping --type input --protocol icmp
+knock-control issue --name Phone --rules ssh_lan,ping --allowed-rules ssh_lan,ping,udp_range --out /root/phone.json --qr-out /root/phone.png
+```
+
+On OpenWrt each definition is a `config rule 'NAME'` section in
+`/etc/config/knock-control`; profile lists `rules` and `allowed_rules` bind it to
+an issued secret. Clients select only allowed names and cannot change targets.
+`input` opens local services, `forward` permits routed traffic to `dest_ip`, and
+`dnat` forwards to that host with optional single-port translation. Ranges keep
+port numbers. ICMP defaults to echo-request; `--icmp-type any` selects all types.
+ON/OFF and traffic idle expiry apply per source IP, including established NAT
+flows. No SNAT is added; internal hosts need a return route. IPv6 is not supported.
+See the Russian guide for full UCI examples, migration and verification.
 
 ### Motivation
 
@@ -16,16 +70,16 @@ Knock Control can act as a preconfigured emergency entrance (a controlled
 "backdoor") when the usual access method, such as a VPN, is unavailable because
 of a service failure, routing problem, client configuration or network restrictions.
 An authorized client can temporarily reach sensitive SSH, RDP, administration or
-other TCP services that are normally inaccessible from the public internet,
+other TCP/UDP services that are normally inaccessible from the public internet,
 restore the primary access method, and remove its grant with OFF. Protected
 service traffic refreshes only that source IP's idle timeout; otherwise the grant
 expires automatically. The service retains its normal authentication.
 
 Set up and test this path before an incident. It works independently of the VPN
 as long as the server and the selected knock transport or HTTPS control API
-remain reachable. The current firewall manages services on the host's reachable
-IPv4; services bound only to a VPN address or localhost need additional routing
-or a proxy.
+remain reachable. The firewall supports the host's IPv4 services and routed/DNAT access to internal
+hosts. Forwarding requires IP routing and a return route through this server;
+services bound only to localhost require a proxy.
 
 Two clients can import the same profile: with different public IPv4 addresses,
 ON/OFF and idle expiry affect their own grants. Profile settings and revocation

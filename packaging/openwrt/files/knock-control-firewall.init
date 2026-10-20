@@ -1,0 +1,11 @@
+#!/bin/sh /etc/rc.common
+# Prepare the persistent include before firewall4 starts at S19.
+START=18
+STOP=89
+start() {
+    /usr/sbin/knock-control migrate || return 1
+    /usr/sbin/knock-control configured >/dev/null || return 0
+    /usr/sbin/knock-control prepare-firewall
+}
+# Stopping the service deliberately retains protection of configured ports.
+stop() { :; }

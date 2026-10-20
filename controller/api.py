@@ -2,7 +2,6 @@
 import fcntl
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
-from pathlib import Path
 import socket
 from socketserver import ThreadingMixIn
 import sqlite3
@@ -12,12 +11,12 @@ import time
 import server
 
 MAX_BODY = 65536
-APP_ROOT = Path('/usr/local/share/knock-control/app')
+APP_ROOT = server.APP_ROOT
 APP_TYPES = {
     'app.html':'text/html; charset=utf-8', 'app.webmanifest':'application/manifest+json',
     'style.css':'text/css; charset=utf-8', 'icon.svg':'image/svg+xml',
     **{name:'text/javascript; charset=utf-8' for name in (
-        'app.js','bridge.js','browser-client.js','profile-codec.js','transport-config.js',
+        'app.js','bridge.js','browser-client.js','ice-client.js','profile-codec.js','transport-config.js',
         'qr.js','sw.js','vendor/jsQR.js')},
     **{f'icon-{size}.png':'image/png' for size in (180,192,512)},
 }
@@ -114,7 +113,7 @@ class APIHandler(BaseHTTPRequestHandler):
                     self.reply(401, {'ok': False, 'error': 'Authentication failed'})
                     return
                 response = server.dispatch(json.loads(body), ident, self.client_address[0])
-                response['access_active'] = server.run([server.IPSET,'test',server.set_name(ident),self.client_address[0]],check=False).returncode == 0
+                response['access_active'] = server.grant_active(ident,self.client_address[0])
             response['observed_ip'] = self.client_address[0]
             self.reply(200, response)
         except (ValueError, UnicodeError):

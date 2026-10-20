@@ -46,9 +46,12 @@ def settings(value):
     if result['seq_timeout'] <= count * .25 or result['period'] <= count * .25 + .5:
         raise ValueError('Increase seq_timeout/period for the chosen sequence length')
     ports = value.get('ports', [22])
-    if not isinstance(ports, list) or not 1 <= len(ports) <= 15:
-        raise ValueError('Use 1..15 protected TCP ports')
+    if not isinstance(ports, list) or len(ports) > 15 or not ports and 'rules' not in value:
+        raise ValueError('Use 1..15 protected TCP ports or a named rule list')
     result['ports'] = sorted(set(integer(p, 1, 65535, 'port') for p in ports))
+    if 'rules' in value:
+        from rules import rule_names
+        result['rules'] = rule_names(value['rules'])
     if any(result['base'] <= p <= result['base'] + 255 for p in result['ports']):
         raise ValueError('Protected ports must be outside the knock range')
     if 'profile_id' in value:
@@ -125,7 +128,7 @@ def read_json(path):
 
 
 PROFILE_ID = re.compile(r'[0-9a-f]{24}')
-EDITABLE = frozenset(('ports', 'idle_timeout', 'protocols', 'seq_timeout', 'ip_protection'))
+EDITABLE = frozenset(('ports', 'rules', 'idle_timeout', 'protocols', 'seq_timeout', 'ip_protection'))
 
 
 def profile_id(value):
@@ -137,6 +140,31 @@ def profile_id(value):
 def api_signature(secret, timestamp, nonce, body):
     message = f'knock-control:api:v2:POST:/v1/control:{timestamp}:{nonce}:'.encode('ascii') + hashlib.sha256(body).hexdigest().encode('ascii')
     return hmac.new(base64.b32decode(secret), message, hashlib.sha256).hexdigest()
+
+
+def ice_token(bundle, action, source, *, now=None, nonce=None, issued_ms=None):
+    if action not in ('open', 'close'): raise ValueError('Invalid ICE action')
+    now = time.time() if now is None else now
+    source = str(ipaddress.IPv4Address(source))
+    nonce = secrets.token_hex(16) if nonce is None else nonce
+    if not isinstance(nonce,str) or not re.fullmatch('[0-9a-f]{32}',nonce): raise ValueError('Invalid ICE nonce')
+    issued_ms = int(now*1000) if issued_ms is None else integer(issued_ms,0,2**53-1,'issued_ms')
+    prefix = 'KNI1'+profile_id(bundle['profile_id'])+('O' if action=='open' else 'C')+f'{bundle["revision"]:08x}{int(now)//30:016x}{issued_ms:016x}'+nonce
+    ip = source if bundle['settings']['ip_protection'] else '-'
+    signature=hmac.new(base64.b32decode(bundle['secret']),f'knock-control:ice:v1:{prefix}:{ip}'.encode('ascii'),hashlib.sha256).hexdigest()
+    return prefix+signature
+
+
+def verify_ice_token(bundle, token, source, *, now=None):
+    now=time.time() if now is None else now
+    if not isinstance(token,str) or not re.fullmatch(r'KNI1[0-9a-f]{24}[OC][0-9a-f]{136}',token): raise ValueError('Invalid ICE token')
+    step,issued=int(token[37:53],16),int(token[53:69],16)
+    if token[4:28]!=bundle['profile_id'] or int(token[29:37],16)!=bundle['revision'] or abs(int(now)//30-step)>1 or abs(int(now*1000)-issued)>60000:
+        raise ValueError('Expired or replaced ICE credential')
+    action='open' if token[28]=='O' else 'close'
+    expected=ice_token(bundle,action,source,now=step*30,nonce=token[69:101],issued_ms=issued)
+    if not hmac.compare_digest(token,expected): raise ValueError('Invalid ICE authentication')
+    return action,token[69:101],issued
 
 
 def client_bundle(value):
@@ -168,10 +196,12 @@ def client_bundle(value):
         raise ValueError('Invalid profile name')
     ip = value.get('public_ip', '')
     ip = str(ipaddress.IPv4Address(ip)) if ip else ''
-    return {'format': 'knock-control-client-v2', 'profile_id': ident, 'name': name,
+    result = {'format': 'knock-control-client-v2', 'profile_id': ident, 'name': name,
             'server_url': url.rstrip('/'), 'server_certificate_sha256': pin,
             'knock_host': host, 'secret': config['secret'], 'settings': public_settings(config),
             'public_ip': ip, 'revision': integer(value.get('revision', 1), 1, 2147483647, 'revision')}
+    if 'ice_version' in value: result['ice_version']=integer(value['ice_version'],1,1,'ice_version')
+    return result
 
 
 def atomic_write_bytes(path, data, mode=0o600):

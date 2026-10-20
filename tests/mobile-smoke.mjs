@@ -66,9 +66,23 @@ try {
         assert.equal(result.manifest,'standalone');assert.equal(result.worker,true);assert.equal(result.overflow,false);
         console.log('PASS: camera video pipeline decodes QR and stops capture (simulated camera frames)');
       }
+      await page.locator('#add-profile').click();
+      await page.locator('#qr-image').setInputFiles(resolve(home,'server/rules.png'));
+      await page.locator('#message').filter({hasText:'Профиль импортирован'}).waitFor();
+      await page.locator('#open').click();await page.locator('#state').filter({hasText:'Доступ включён'}).waitFor();
+      assert.equal(await page.locator('[name=ports]').inputValue(),'');
+      assert.ok((await page.locator('[name=rules]').inputValue()).split(',').includes('ping'));
+      assert.match(await page.locator('#policy').textContent(),/udp_range/);
+      await page.locator('#settings-panel').evaluate(el=>{el.open=true;});
+      await page.locator('[name=rules]').fill('ping,udp_range');
+      await page.locator('#settings-form button').click();
+      await page.locator('#message').filter({hasText:'Настройки сохранены'}).waitFor();
+      assert.equal(await page.locator('[name=rules]').inputValue(),'ping,udp_range');
+      await page.locator('#open').click();await page.locator('#state').filter({hasText:'Доступ включён'}).waitFor();
+      await page.locator('#close').click();await page.locator('#state').filter({hasText:'Доступ выключен'}).waitFor();
       assert.deepEqual(errors,[]);
       const response=await context.request.get(alice.server_url+'/app/../settings.json');assert.equal(response.status(),404);
-      console.log(`PASS: ${engine} mobile viewport: QR link + PNG import, remembered profiles, automatic IP, ON/OFF, isolated settings, no secret in HTTP URLs`);
+      console.log(`PASS: ${engine} mobile viewport: QR link + PNG import, remembered profiles, automatic IP, ON/OFF, named rule selection with empty TCP ports, isolated settings, no secret in HTTP URLs`);
       await context.close();
     } finally {await browser.close();}
   }

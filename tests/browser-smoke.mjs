@@ -65,8 +65,18 @@ try {
   await page.locator('#message').filter({hasText:'Введите 6 цифр'}).waitFor();
   await page.locator('#code').fill('');await page.locator('#open').click();
   await page.locator('#message').filter({hasText:'Последовательность отправлена'}).waitFor({timeout:15000});
+  await page.goto(`${origin}/options.html`);
+  await page.locator('#message').filter({hasText:'Профиль загружен'}).waitFor();
+  await page.locator('#import-file').setInputFiles(resolve(home,'server/rules.json'));
+  await page.locator('#message').filter({hasText:'профиль импортирован'}).waitFor();
+  await page.locator('#refresh').click();await page.locator('#message').filter({hasText:'получены с сервера'}).waitFor();
+  assert.equal(await page.locator('[name=ports]').inputValue(),'');
+  assert.equal(await page.locator('[name=rules]').inputValue(),'ping');
+  await page.locator('[name=rules]').fill('ping,udp_range');
+  await page.locator('#apply').click();await page.locator('#message').filter({hasText:'Настройки этого секрета применены'}).waitFor();
+  assert.equal(await page.locator('[name=rules]').inputValue(),'ping,udp_range');
   assert.deepEqual(errors,[]);
-  console.log('PASS: Chromium import/select two server-issued secrets, scoped settings via real pinned HTTPS, Google Authenticator, Native Messaging and signed knocks');
+  console.log('PASS: Chromium import/select two server-issued secrets, named rule lists and scoped settings via real pinned HTTPS, Google Authenticator, Native Messaging and signed knocks');
 } finally {
   if(context) await context.close();
   if(fixture) { fixture.kill(); await new Promise(resolve=>fixture.once('exit',resolve)); }
