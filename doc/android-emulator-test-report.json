@@ -1,0 +1,85 @@
+{
+  "result": "PASS",
+  "tested_date": "2026-10-20",
+  "source_commit": "a8800eae591eacb3a58c12ddf4bafc85b9e3ea42",
+  "release": "v3.0.0-r6",
+  "device": {
+    "type": "Android emulator with KVM",
+    "android": "15",
+    "api": 35,
+    "architecture": "x86_64",
+    "system_image": "google_apis/x86_64-35_r09",
+    "build_fingerprint": "google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+    "emulator": "37.3.4.0"
+  },
+  "browsers": {
+    "chrome_apk": "124.0.6367.219 (bundled with system image)",
+    "firefox_apk": "158.0.1 (official Mozilla release APK)"
+  },
+  "fixture": "Real Linux libpcap daemon, signed controller callbacks, iptables/ipset and protected HTTP listeners in a disposable network namespace; APKs run inside Android",
+  "limitations": [
+    "Firefox extension installed temporarily through WebDriver: unsigned release XPI is not permanently installable in standard Firefox",
+    "Self-signed TLS accepted only in disposable test browser profiles, as stated in each result",
+    "No physical Android/iPhone or Safari validation",
+    "No system-camera/gallery QR scan validation in these emulator runs: QR enrollment URL/text was imported",
+    "Chrome tested at the system image version, not latest Chrome",
+    "Android app sandbox was not disabled; Android userdebug image allowed ADB root for test setup",
+    "Saved cache startup verified; adding a home-screen launcher icon was not automated"
+  ],
+  "results": [
+    {
+      "result": "PASS",
+      "browser": "Chrome Android",
+      "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+      "checks": [
+        "QR enrollment URL imported and removed from URL; profile survives reload",
+        "Cached web app shell and stored profile reload with the HTTPS server stopped",
+        "ICE ON/OFF opens/closes a real protected HTTP service with management HTTPS listener closed",
+        "Captured ON rejected after daemon restart",
+        "Idle access expires without protected service traffic",
+        "Signed HTTPS status and profile configuration work on Android"
+      ],
+      "api_requests_during_ice": 0,
+      "knock_udp_listener": false,
+      "certificate_exception": "Self-signed certificate accepted only in this disposable test browser"
+    },
+    {
+      "result": "PASS",
+      "browser": "Firefox Android",
+      "mode": "extension",
+      "user_agent": "Mozilla/5.0 (Android 15; Mobile; rv:158.0) Gecko/158.0 Firefox/158.0",
+      "checks": [
+        "Original unsigned release XPI temporarily installed in real Firefox Android; QR text imported",
+        "Profile persists after page reload",
+        "ON/OFF opens/closes actual protected HTTP service with HTTPS management listener closed",
+        "Captured ON replay rejected after daemon restart",
+        "Idle lease expires without protected traffic",
+        "Signed HTTPS status works in Firefox Android"
+      ],
+      "api_requests_during_ice": 0,
+      "knock_udp_listener": false,
+      "certificate_exception": "Self-signed fixture certificate accepted only by this disposable WebDriver profile",
+      "extension_installation": "temporary debugging install; permanent Firefox installation still requires Mozilla signature"
+    },
+    {
+      "result": "PASS",
+      "browser": "Firefox Android",
+      "mode": "pwa",
+      "user_agent": "Mozilla/5.0 (Android 15; Mobile; rv:158.0) Gecko/158.0 Firefox/158.0",
+      "checks": [
+        "QR enrollment link imported and secret fragment removed",
+        "Profile persists after page reload",
+        "Service worker activated and controls saved application",
+        "PWA opens from saved shell with stored profile while HTTPS server is stopped",
+        "ON/OFF opens/closes actual protected HTTP service with HTTPS management listener closed",
+        "Captured ON replay rejected after daemon restart",
+        "Idle lease expires without protected traffic",
+        "Signed HTTPS status works in Firefox Android"
+      ],
+      "api_requests_during_ice": 0,
+      "knock_udp_listener": false,
+      "certificate_exception": "Fixture CA installed only in the disposable Firefox NSS profile; WebDriver acceptInsecureCerts also enabled",
+      "extension_installation": null
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 ## knock: A port-knocking implementation
 
-Download browser extensions, the web app and architecture-specific OpenWrt APKs from [release v3.0.0-r6](https://github.com/rdmitry0911/knock/releases/tag/v3.0.0-r6). Firefox XPI archives are unsigned.
+Download browser extensions, the web app and architecture-specific OpenWrt APKs from [release v3.0.0-r6](https://github.com/rdmitry0911/knock/releases/tag/v3.0.0-r6). **Firefox XPI archives are unsigned and cannot be permanently installed in standard Firefox.** Chrome/Edge ZIPs require unpacking and developer mode. See [installation and Mozilla signing instructions (Russian)](doc/BROWSER_INSTALLATION_RU.md).
 
 This fork includes **Knock Control**, a controlled emergency access mechanism for
 sensitive services normally blocked from the public internet. It includes a
@@ -42,6 +42,14 @@ is performed. Sending is unacknowledged; verify access through the protected ser
 Nonces and per-IP command ordering persist in SQLite across daemon restarts.
 An extension has its application files locally; the PWA needs prior HTTPS installation.
 See the Russian guide for setup, protocol and current verification results.
+
+Real Android APKs have also passed emulator tests on Android 15 / API 35 x86_64:
+Chrome 124.0.6367.219 web app and Firefox 158.0.1 web app/temporary extension.
+Checks cover real firewall ON/OFF with the HTTPS listener stopped, cached web-app
+startup, idle expiry and replay rejection after restart. This does not establish
+permanent Firefox installation or physical phone/iOS compatibility.
+See the [Android lab instructions](doc/ANDROID_TESTING.md) and
+[test report](doc/android-emulator-test-report.json).
 
 ### Named firewall rules
 
