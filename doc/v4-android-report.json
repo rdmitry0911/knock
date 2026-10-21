@@ -1,0 +1,101 @@
+{
+  "device": {
+    "type": "Android emulator with KVM",
+    "android": "15",
+    "api": 35,
+    "architecture": "x86_64",
+    "system_image": "google_apis/x86_64-35_r09",
+    "build_fingerprint": "google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+    "emulator": "37.3.4.0"
+  },
+  "browsers": {
+    "chrome_apk": "124.0.6367.219 (bundled with system image)",
+    "firefox_apk": "158.0.1 (official Mozilla release APK)"
+  },
+  "limitations": [
+    "Android Firefox extension temporarily installed through WebDriver using the final unsigned payload. Matching Mozilla-signed release XPI passed permanent installation and restart separately in stock desktop Firefox.",
+    "Self-signed TLS accepted only in disposable test browser profiles, as stated in each result",
+    "No physical Android/iPhone or Safari validation",
+    "No system-camera/gallery QR scan validation in these emulator runs: QR enrollment URL/text was imported",
+    "Chrome tested at the system image version, not latest Chrome",
+    "Android app sandbox was not disabled; Android userdebug image allowed ADB root for test setup",
+    "Saved cache startup verified; adding a home-screen launcher icon was not automated"
+  ],
+  "result": "PASS",
+  "tested_date": "2026-10-21",
+  "release": "v4.0.3",
+  "source_commit": "dd8823bb588ab348c303e48295642b4de9e6c1f6",
+  "fixture": "Real Linux libpcap daemon, signed controller callbacks, iptables/ipset, test STUN and protected HTTP listeners in a disposable network namespace; Android APKs; static bootstrap hosting only, no control API",
+  "unsigned_xpi_sha256": "a7f4ddc82d15fc31694f59fc1b38a3280d09b3434b53f029783eff05551c6f29",
+  "signed_xpi_sha256": "e1964588cb370b463ce6807d028b78ee0edc19dff1e4a071365d69b3c8aa4a61",
+  "signed_payload_matches_tested_unsigned": true,
+  "results": [
+    {
+      "result": "PASS",
+      "browser": "Chrome Android",
+      "client_cache": "knock-control-shell-4.0.3-knock-only",
+      "interface_language": "en",
+      "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+      "checks": [
+        "Offline QR text imported without visiting the knock server; profile survives reload",
+        "Cached web app shell and stored profile reload with the HTTPS server stopped",
+        "ICE ON/OFF opens/closes a real protected HTTP service with static bootstrap host stopped; no control API installed",
+        "Captured ON rejected after daemon restart",
+        "Idle access expires without protected service traffic",
+        "Local profile deletion persists after reload with static host stopped"
+      ],
+      "api_requests_during_ice": 0,
+      "knock_udp_listener": false,
+      "certificate_exception": "Self-signed certificate accepted only in this disposable test browser"
+    },
+    {
+      "result": "PASS",
+      "browser": "Firefox Android",
+      "mode": "extension",
+      "extension_version": "4.0.3",
+      "navigation_wait": "complete",
+      "interface_language": "en",
+      "user_agent": "Mozilla/5.0 (Android 15; Mobile; rv:158.0) Gecko/158.0 Firefox/158.0",
+      "checks": [
+        "Original unsigned release XPI temporarily installed in real Firefox Android; QR text imported",
+        "Profile persists after page reload",
+        "ON/OFF opens/closes actual protected HTTP service with static bootstrap host stopped; no control API installed",
+        "Captured ON replay rejected after daemon restart",
+        "Idle lease expires without protected traffic",
+        "Offline local profile deletion persists after reload"
+      ],
+      "api_requests_during_ice": 0,
+      "knock_udp_listener": false,
+      "certificate_exception": "Fixture CA installed only in the disposable Firefox NSS profile; WebDriver acceptInsecureCerts also enabled",
+      "extension_installation": "temporary debugging install; permanent Firefox installation still requires Mozilla signature"
+    },
+    {
+      "result": "PASS",
+      "browser": "Firefox Android",
+      "mode": "pwa",
+      "navigation_wait": "complete",
+      "interface_language": "en",
+      "user_agent": "Mozilla/5.0 (Android 15; Mobile; rv:158.0) Gecko/158.0 Firefox/158.0",
+      "checks": [
+        "Offline QR text imported from standalone static client",
+        "Profile persists after page reload",
+        "Service worker activated and controls saved application",
+        "PWA opens from saved shell with stored profile while HTTPS server is stopped",
+        "ON/OFF opens/closes actual protected HTTP service with static bootstrap host stopped; no control API installed",
+        "Captured ON replay rejected after daemon restart",
+        "Idle lease expires without protected traffic",
+        "Offline local profile deletion persists after reload"
+      ],
+      "api_requests_during_ice": 0,
+      "knock_udp_listener": false,
+      "certificate_exception": "Fixture CA installed only in the disposable Firefox NSS profile; WebDriver acceptInsecureCerts also enabled",
+      "extension_installation": null
+    }
+  ],
+  "coverage": [
+    "Only ON/OFF and profile import/selection/deletion; no configuration/status UI or HTTP API",
+    "All three clients open/close real protected access, reject replay after daemon restart, expire idle grants and persist offline deletion",
+    "Both standalone web apps start from saved cache while bootstrap host is stopped; Firefox extension runs directly from its package",
+    "Chrome cache version and Firefox extension version are 4.0.3"
+  ]
+}
