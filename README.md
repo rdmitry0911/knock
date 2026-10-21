@@ -1,6 +1,6 @@
 # Knock Control 4
 
-[Download v4.0.3](https://github.com/rdmitry0911/knock/releases/tag/v4.0.3): Mozilla-signed Firefox XPI, Chromium ZIP, OpenWrt APKs and sources. [Russian guide](README_RU.md).
+[Download v4.0.3](https://github.com/rdmitry0911/knock/releases/tag/v4.0.3): Mozilla-signed Firefox XPI, Chromium ZIP, Linux DEB/RPM, OpenWrt APKs and sources. [Linux packages](doc/LINUX_PACKAGES.md). [Russian guide](README_RU.md).
 
 Knock Control provides a preconfigured emergency entrance (a controlled
 "backdoor") when the usual access path, such as a VPN, fails. It temporarily
