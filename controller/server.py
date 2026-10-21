@@ -13,14 +13,14 @@ import os
 from pathlib import Path
 import secrets
 import sqlite3
-import ssl
+import socket
 import subprocess
 import sys
 import tempfile
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import confirmation, sequence, EDITABLE, api_signature, atomic_write, integer, profile_id, public_settings, read_json, settings
+from common import atomic_write, integer, profile_id, public_settings, read_json, settings
 from common import verify_ice_token
 import rules as named_rules
 
@@ -29,8 +29,6 @@ OPENWRT = Path('/etc/openwrt_release').is_file()
 DAEMON_CONFIG = Path('/etc/knock-control/knockd.conf')
 LOCK = Path('/run/knock-control.lock')
 REPLAYS = Path('/var/lib/knock-control/api-replays.sqlite3')
-CERT = Path('/etc/knock-control/server.crt')
-KEY = Path('/etc/knock-control/server.key')
 SERVICE = 'knock-control.service'
 IPSET = '/usr/sbin/ipset'
 IPTABLES = '/usr/sbin/iptables'
@@ -38,7 +36,6 @@ RESTORE = '/usr/sbin/iptables-restore'
 CHAIN = 'KNOCK_CONTROL'
 CONTROL = '/usr/sbin/knock-control' if OPENWRT else '/usr/local/sbin/knock-control'
 DAEMON = '/usr/sbin/knock-control-daemon' if OPENWRT else '/usr/local/sbin/knockd'
-APP_ROOT = Path('/usr/share/knock-control/app' if OPENWRT else '/usr/local/share/knock-control/app')
 if OPENWRT:
     LOCK = Path('/var/lock/knock-control.lock')
     REPLAYS = Path('/etc/knock-control/api-replays.sqlite3')
@@ -75,6 +72,8 @@ def load():
     db = read_json(CONFIG)
     if not isinstance(db, dict) or db.get('schema') != 2:
         raise ValueError('Initialize the server with knock-control init (v2 database required)')
+    for key in ('api_bind','api_port','server_url','certificate_sha256'):db.pop(key,None)
+    for profile in db['profiles'].values():profile['policy'].pop('can_configure',None)
     named_rules.validate(db)
     return db
 
@@ -203,49 +202,8 @@ def publish(db, changed=(), *, start=False):
         raise
 
 
-def own_status(db, ident):
-    profile = db['profiles'][ident]
-    return {'ok': True, 'profile_id': ident, 'name': profile['name'],
-            'enabled': profile['enabled'], 'revision': profile['revision'],
-            'daemon_running': active(), 'settings': public_settings(config_for(db, profile)),
-            'policy': profile['policy'],
-            'rules': {name: db['rules'][name] for name in profile['policy'].get('allowed_rules', [])}}
 
 
-def dispatch(request, ident, source=None):
-    if not isinstance(request, dict) or set(request) - {'action', 'settings', 'revision', 'sequence', 'confirmation'}:
-        raise ValueError('Only operations on the authenticated profile are allowed')
-    db = load()
-    ident = profile_id(ident)
-    profile = db['profiles'].get(ident)
-    if not profile or profile['revoked']:
-        raise ValueError('Credential revoked or unknown')
-    action = request.get('action')
-    if action == 'status':
-        return own_status(db, ident)
-    if action in ('browser-open','browser-close'):
-        return browser_access(db, profile, request, source)
-    if action != 'configure':
-        raise ValueError('Unknown profile action')
-    if request.get('revision') != profile['revision']:
-        raise ValueError('Profile changed; refresh its status and retry')
-    if action == 'configure':
-        patch = request.get('settings')
-        if not profile['policy']['can_configure']:
-            raise ValueError('Settings changes are disabled by the administrator')
-        if not isinstance(patch, dict) or set(patch) - EDITABLE:
-            raise ValueError('Setting is not editable by this credential')
-        cfg = config_for(db, {**profile, 'settings': {**profile['settings'], **patch}})
-        if not set(cfg['ports']) <= set(profile['policy']['allowed_ports']):
-            raise ValueError('Port is outside this credential policy')
-        if cfg['idle_timeout'] > profile['policy']['max_idle_timeout']:
-            raise ValueError('Lease exceeds this credential policy')
-        if not set(cfg.get('rules', [])) <= set(profile['policy'].get('allowed_rules', [])):
-            raise ValueError('Rule is outside this credential policy')
-        profile['settings'] = {key: val for key, val in public_settings(cfg).items() if key not in ('interface', 'profile_id')}
-    profile['revision'] += 1
-    publish(db, [ident])
-    return own_status(db, ident)
 
 
 def access(action, ident, tag, source):
@@ -287,79 +245,25 @@ def access_ice(ident, tag, source, token):
     return access('access-'+action,ident,tag,source)
 
 
-def browser_access(db, profile, request, source):
-    if not profile['policy'].get('allow_browser_transport',True):
-        raise ValueError('Browser transport disabled by administrator')
-    if not profile['enabled'] or not db.get('activated',True):
-        raise ValueError('Profile or server inactive')
-    source=str(ipaddress.IPv4Address(source))
-    cfg=config_for(db,profile)
-    action=request['action'].removeprefix('browser-')
-    encoded=request.get('confirmation')
-    if not isinstance(encoded,str) or len(encoded)>128:
-        raise ValueError('Invalid confirmation')
-    try:proof=base64.b64decode(encoded,validate=True)
-    except ValueError:raise ValueError('Invalid confirmation') from None
-    if len(proof)!=60 or proof[:4]!=b'KNC1':raise ValueError('Invalid confirmation')
-    step=struct.unpack('>Q',proof[4:12])[0]
-    if abs(int(time.time())//30-step)>1:raise ValueError('Expired confirmation')
-    expected=confirmation(cfg,action,source,now=step*30,nonce=proof[12:28])
-    if not hmac.compare_digest(proof,expected):raise ValueError('Invalid confirmation')
-    required=[list(item) for item in sequence(cfg,action,source,now=step*30)]
-    if request.get('sequence')!=required:raise ValueError('Incomplete knock sequence')
-    reserve_nonce('confirm:'+profile['id'],proof[12:28].hex(),int(time.time()))
-    access('access-'+action,profile['id'],credential_tag(profile),source)
-    result=own_status(db,profile['id'])
-    result['message']='Access enabled' if action=='open' else 'Access disabled'
-    return result
 
 
-def reserve_nonce(ident,nonce,now):
-    REPLAYS.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
-    with sqlite3.connect(REPLAYS,timeout=5) as connection:
-        os.chmod(REPLAYS,0o600)
-        connection.execute('CREATE TABLE IF NOT EXISTS nonces (profile TEXT, nonce TEXT, expires INTEGER, PRIMARY KEY(profile,nonce))')
-        connection.execute('BEGIN IMMEDIATE')
-        connection.execute('DELETE FROM nonces WHERE expires < ?',(now,))
-        if connection.execute('SELECT count(*) FROM nonces').fetchone()[0]>=10000:raise ValueError('Authentication capacity exceeded')
-        try:connection.execute('INSERT INTO nonces VALUES (?,?,?)',(ident,nonce,now+121))
-        except sqlite3.IntegrityError:raise ValueError('Authentication failed') from None
 
 
-def authenticate(header, body, *, now=None):
-    """HMAC authorization with durable nonce uniqueness across API restarts."""
-    now = int(time.time() if now is None else now)
-    try:
-        scheme, token = header.split(' ', 1)
-        ident, timestamp, nonce, signature = token.split(':')
-        import re
-        if scheme != 'Knock' or not re.fullmatch(r'[0-9]{1,12}', timestamp) or not re.fullmatch(r'[0-9a-f]{32}', nonce) or not re.fullmatch(r'[0-9a-f]{64}', signature):
-            raise ValueError()
-        if abs(now - int(timestamp)) > 60:
-            raise ValueError()
-        profile = load()['profiles'].get(profile_id(ident))
-        if not profile or profile['revoked']:
-            raise ValueError()
-        expected = api_signature(profile['secret'], timestamp, nonce, body)
-        if not hmac.compare_digest(expected, signature):
-            raise ValueError()
-    except (ValueError, AttributeError):
-        raise ValueError('Authentication failed') from None
-    reserve_nonce(ident,nonce,now)
-    return ident
 
 
 def export_bundle(db, ident):
     profile = db['profiles'][profile_id(ident)]
     if profile['revoked']:
         raise ValueError('Credential revoked')
-    return {'format': 'knock-control-client-v2', 'profile_id': ident, 'name': profile['name'],
-            'server_url': db['server_url'], 'server_certificate_sha256': db['certificate_sha256'],
-            'knock_host': db['knock_host'], 'secret': profile['secret'],
-            'settings': public_settings(config_for(db, profile)), 'revision': profile['revision'], 'ice_version':1}
+    host=db['knock_host']
+    ice_host=host if _is_ipv4(host) else socket.getaddrinfo(host,None,socket.AF_INET,socket.SOCK_DGRAM)[0][4][0]
+    return {'format':'knock-control-client-v3','profile_id':ident,'name':profile['name'],
+            'knock_host':host,'ice_host':ice_host,'secret':profile['secret'],
+            'settings':public_settings(config_for(db,profile)),'revision':profile['revision'],'ice_version':1}
 
 
-def issue(db, name, ports, allowed_ports, idle_timeout=600, max_idle_timeout=3600, can_configure=True, rules=None, allowed_rules=None):
+
+def issue(db, name, ports, allowed_ports, idle_timeout=600, max_idle_timeout=3600, rules=None, allowed_rules=None):
     named_rules.validate(db)
     if rules is None and allowed_rules is not None:
         raise ValueError('--allowed-rules requires --rules')
@@ -370,8 +274,6 @@ def issue(db, name, ports, allowed_ports, idle_timeout=600, max_idle_timeout=360
     allowed_ports = sorted(set(integer(p, 1, 65535, 'allowed port') for p in allowed_ports))
     if (not allowed_ports and rules is None) or len(allowed_ports) > 128:
         raise ValueError('Use 1..128 allowed ports')
-    if db['api_port'] in allowed_ports:
-        raise ValueError('The management API port cannot be protected by a client profile')
     if not set(ports) <= set(allowed_ports):
         raise ValueError('Initial ports must be allowed by the policy')
     max_idle_timeout = integer(max_idle_timeout, 10, 86400, 'max_idle_timeout')
@@ -383,7 +285,7 @@ def issue(db, name, ports, allowed_ports, idle_timeout=600, max_idle_timeout=360
                  if b not in existing and not any(b <= port <= b+255 for port in protected)
                  and not any(int(port.split('-')[0]) <= b+255 and int(port.split('-')[-1]) >= b
                              for r in db.get('rules',{}).values() if r['type'] != 'forward' and r['protocol'] != 'icmp' for port in r['ports'])
-                 and not b <= db['api_port'] <= b+255), None)
+                 ), None)
     if base is None:
         raise ValueError('No free knock range')
     if any(b <= port <= b+255 for b in existing for port in allowed_ports):
@@ -397,7 +299,7 @@ def issue(db, name, ports, allowed_ports, idle_timeout=600, max_idle_timeout=360
     db['profiles'][ident] = {'id': ident, 'name': name, 'secret': secret, 'enabled': True,
                             'revoked': False, 'revision': 1,
                             'settings': {k: v for k, v in public_settings(cfg).items() if k not in ('interface', 'profile_id')},
-                            'policy': {'allowed_ports': allowed_ports, 'max_idle_timeout': max_idle_timeout, 'can_configure': can_configure, 'allow_browser_transport': True}}
+                            'policy': {'allowed_ports': allowed_ports, 'max_idle_timeout': max_idle_timeout, 'allow_browser_transport': True}}
     db['protected_ports'] = protected
     if rules is not None:
         db['profiles'][ident]['settings']['rules'] = named_rules.rule_names(rules)
@@ -406,47 +308,14 @@ def issue(db, name, ports, allowed_ports, idle_timeout=600, max_idle_timeout=360
     return ident
 
 
-def init_server(host, interface, api_port, bind):
+def init_server(host, interface):
     import re
-    if CONFIG.exists():
-        raise ValueError('Server already configured; initialization will not overwrite credentials')
-    if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}', host):
-        raise ValueError('Use a public IPv4 address or hostname')
-    # Validate interface using the shared parser without persisting a client key.
-    settings({'interface': interface, 'secret': 'A'*32})
-    ipaddress.IPv4Address(bind)
-    integer(api_port, 1, 65535, 'API port')
-    CONFIG.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    san = 'IP:' + host if _is_ipv4(host) else 'DNS:' + host
-    run(['/usr/bin/openssl', 'req', '-x509', '-newkey', 'rsa:3072', '-sha256', '-nodes',
-         '-keyout', str(KEY), '-out', str(CERT), '-days', '3650', '-subj', '/CN=Knock Control', '-addext', 'subjectAltName='+san])
-    KEY.chmod(0o600)
-    fingerprint = hashlib.sha256(ssl.PEM_cert_to_DER_cert(CERT.read_text())).hexdigest()
-    db = {'schema': 2, 'activated': False, 'interface': interface, 'api_bind': bind, 'api_port': api_port,
-          'server_url': f'https://{host}:{api_port}', 'knock_host': host,
-          'certificate_sha256': fingerprint, 'protected_ports': [], 'profiles': {}}
-    atomic_write(CONFIG, json.dumps(db, indent=2)+'\n')
-    atomic_write(DAEMON_CONFIG, render(db))
+    if CONFIG.exists():raise ValueError('Server already configured; initialization will not overwrite credentials')
+    if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}',host):raise ValueError('Use a public IPv4 address or hostname')
+    settings({'interface':interface,'secret':'A'*32})
+    db={'schema':2,'activated':False,'interface':interface,'knock_host':host,'protected_ports':[],'profiles':{}}
+    atomic_write(CONFIG,json.dumps(db,indent=2)+'\n');atomic_write(DAEMON_CONFIG,render(db))
     return db
-
-
-def install_tls(db, cert_path, key_path):
-    import re
-    cert,key=Path(cert_path).read_text(),Path(key_path).read_text()
-    check=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);check.load_cert_chain(cert_path,key_path)
-    leaf=re.search(r'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----',cert,re.S)
-    if not leaf:raise ValueError('Invalid certificate')
-    fingerprint=hashlib.sha256(ssl.PEM_cert_to_DER_cert(leaf.group())).hexdigest()
-    old_cert,old_key,old_db=CERT.read_text(),KEY.read_text(),CONFIG.read_text()
-    try:
-        atomic_write(CERT,cert);atomic_write(KEY,key)
-        db['certificate_sha256']=fingerprint
-        atomic_write(CONFIG,json.dumps(db,indent=2)+'\n')
-        service_operation('restart','knock-control-api.service')
-    except (ValueError,OSError,subprocess.SubprocessError):
-        atomic_write(CERT,old_cert);atomic_write(KEY,old_key);atomic_write(CONFIG,old_db)
-        service_operation('restart','knock-control-api.service')
-        raise
 
 
 def _is_ipv4(host):
@@ -473,8 +342,6 @@ def main():
     init = sub.add_parser('init')
     init.add_argument('--public-host', required=True)
     init.add_argument('--interface', default='eth0')
-    init.add_argument('--api-port', type=int, default=8443)
-    init.add_argument('--bind', default='0.0.0.0')
     new = sub.add_parser('issue')
     new.add_argument('--name', required=True)
     new.add_argument('--ports', type=port_list, default=[])
@@ -483,7 +350,6 @@ def main():
     new.add_argument('--allowed-ports', type=port_list)
     new.add_argument('--idle-timeout', type=int, default=600)
     new.add_argument('--max-idle-timeout', type=int, default=3600)
-    new.add_argument('--fixed-settings', action='store_true')
     new.add_argument('--out', type=Path, required=True)
     new.add_argument('--qr-out',type=Path)
     new.add_argument('--native-only',action='store_true')
@@ -495,9 +361,9 @@ def main():
     qr.add_argument('profile_id')
     qr.add_argument('--out',type=Path)
     qr.add_argument('--terminal',action='store_true')
-    tls=sub.add_parser('tls')
-    tls.add_argument('--cert',type=Path,required=True);tls.add_argument('--key',type=Path,required=True)
     sub.add_parser('activate')
+    sub.add_parser('apply')
+    sub.add_parser('migrate')
     sub.add_parser('list')
     sub.add_parser('rules')
     rule = sub.add_parser('rule-set', help='Create or replace a server-owned named rule')
@@ -512,19 +378,14 @@ def main():
     sub.add_parser('firewall')
     if OPENWRT:
         sub.add_parser('prepare-firewall')
-    sub.add_parser('serve')
     for action in ('access-open', 'access-close'):
         command = sub.add_parser(action)
         command.add_argument('profile_id'); command.add_argument('tag'); command.add_argument('source')
     ice=sub.add_parser('access-ice');ice.add_argument('profile_id');ice.add_argument('tag');ice.add_argument('source');ice.add_argument('token')
     args = parser.parse_args()
-    if args.action == 'serve':
-        from api import serve
-        serve()
-        return
     if args.action == 'firewall':
         firewall(load())
-        return  # ExecStartPre must not wait on the API mutation lock.
+        return  # ExecStartPre must not wait on the controller mutation lock.
     if args.action == 'prepare-firewall':
         from nft_backend import prepare
         prepare(load())
@@ -532,18 +393,25 @@ def main():
     with open(LOCK, 'a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if args.action == 'init':
-            db = init_server(args.public_host, args.interface, args.api_port, args.bind)
-            print(json.dumps({'ok': True, 'server_url': db['server_url']}))
+            db = init_server(args.public_host, args.interface)
+            print(json.dumps({'ok': True, 'knock_host': db['knock_host']}))
         elif args.action=='access-ice':
             access_ice(args.profile_id,args.tag,args.source,args.token)
         elif args.action in ('access-open', 'access-close'):
             access(args.action, args.profile_id, args.tag, args.source)
         else:
             db = load()
-            if args.action == 'issue':
+            if args.action == 'migrate':
+                atomic_write(CONFIG,json.dumps(db,indent=2)+'\n')
+                print(json.dumps({'ok':True}))
+            elif args.action == 'apply':
+                for profile in db['profiles'].values():profile['revision']+=1
+                publish(db,db['profiles'].keys())
+                print(json.dumps({'ok':True}))
+            elif args.action == 'issue':
                 if args.qr_out and args.qr_out.suffix.lower() not in ('.png','.svg'):
                     raise ValueError('QR output must be .png or .svg')
-                ident = issue(db, args.name, args.ports, args.allowed_ports or args.ports, args.idle_timeout, args.max_idle_timeout, not args.fixed_settings, args.rules, args.allowed_rules)
+                ident = issue(db, args.name, args.ports, args.allowed_ports or args.ports, args.idle_timeout, args.max_idle_timeout, args.rules, args.allowed_rules)
                 db['profiles'][ident]['policy']['allow_browser_transport']=not args.native_only
                 publish(db, [ident])
                 if args.qr_out:
@@ -571,9 +439,6 @@ def main():
                 if args.out:write_qr(bundle,args.out)
                 if args.terminal:print(terminal_qr(bundle))
                 else:print(json.dumps({'ok':True,'qr_file':str(args.out)}))
-            elif args.action == 'tls':
-                install_tls(db,args.cert,args.key)
-                print(json.dumps({'ok':True,'message':'TLS updated; re-export client profiles to update certificate pins'}))
             elif args.action == 'revoke':
                 profile = db['profiles'].get(profile_id(args.profile_id))
                 if not profile: raise ValueError('Unknown profile')
@@ -581,7 +446,6 @@ def main():
                 publish(db, [args.profile_id])
                 print(json.dumps({'ok': True}))
             elif args.action == 'activate':
-                service_operation('start','knock-control-api.service')
                 db['activated'] = True
                 publish(db, db['profiles'].keys(), start=True)
                 print(json.dumps({'ok': True, 'activated': True}))

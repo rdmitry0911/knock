@@ -1,0 +1,22 @@
+{
+  "result": "PASS",
+  "firefox_test_sandbox_disabled": true,
+  "engines": [
+    "Chromium extension MV3",
+    "Firefox MV2 extension (desktop engine)"
+  ],
+  "noise_packets": 1501700,
+  "popup_close_tested": true,
+  "stun_delay_seconds": 0.5,
+  "checks": [
+    "real browser UI ICE with automatic STUN source discovery; no API requests and closed HTTPS port",
+    "shared profile, two source namespaces; OFF blocks established connection without affecting the other IP",
+    "captured STUN replay rejected before and after daemon restart",
+    "late ON cannot supersede newer OFF; wrong source and revision rejected",
+    "protected activity refreshes only its source; other source expires when idle",
+    "no listening UDP socket on the knock port"
+  ],
+  "version": "4.0.3",
+  "tested_date": "2026-10-21",
+  "notes": "Final error text and version updated after the packet test; ICE signing, transport and background lifecycle are unchanged."
+}

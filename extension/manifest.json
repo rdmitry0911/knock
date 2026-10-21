@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "3.1.1",
+  "version": "4.0.3",
   "description": "__MSG_extensionDescription__",
   "permissions": [
     "storage",
@@ -16,10 +16,6 @@
       "48": "icon-48.png"
     }
   },
-  "options_ui": {
-    "page": "app.html",
-    "open_in_tab": true
-  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
   },
@@ -30,9 +26,6 @@
     "96": "icon-96.png",
     "128": "icon-128.png"
   },
-  "optional_host_permissions": [
-    "https://*/*"
-  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"

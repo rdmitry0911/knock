@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=knock-control
-PKG_VERSION:=3.1.1
+PKG_VERSION:=4.0.3
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-or-later
 PKG_LICENSE_FILES:=COPYING
@@ -16,14 +16,13 @@ define Package/knock-control
   SUBMENU:=Firewall
   TITLE:=TOTP emergency access with browser control and QR enrollment
   URL:=https://github.com/rdmitry0911/knock
-  DEPENDS:=+libpcap +libopenssl +libjson-c +libsqlite3 +libqrencode +libuci +zlib +openssl-util +uhttpd +libustream-mbedtls +firewall4 +nftables-json
+  DEPENDS:=+libpcap +libopenssl +libjson-c +libsqlite3 +libqrencode +libuci +zlib +firewall4 +nftables-json
 endef
 
 define Package/knock-control/description
- Server-issued TOTP profiles, native TCP/UDP knocks and authenticated HTTPS
- control with per-IP traffic idle timeouts. Includes procd services, native
- firewall4/nftables integration and the mobile web client. Native C controller
- and a dedicated uhttpd HTTPS instance; no Python or systemd required.
+ Server-issued profiles, authenticated UDP ICE and native TCP/UDP knocks with
+ per-IP traffic idle timeouts. Includes procd and firewall4/nftables integration.
+ Native C; no Python, HTTPS API, TLS certificates or management listener.
 endef
 
 define Package/knock-control/conffiles
@@ -31,12 +30,28 @@ define Package/knock-control/conffiles
 /etc/knock-control/
 endef
 
-# Older releases persisted only INPUT/OUTPUT definitions. Regenerate the
-# include before a subsequent fw4 reload reads the upgraded hook file.
+# Stop the retired listener while the old init script still exists.
+define Package/knock-control/preinst
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT}" ] && exit 0
+if [ -x /etc/init.d/knock-control-api ]; then
+    /etc/init.d/knock-control-api stop
+    /etc/init.d/knock-control-api disable
+fi
+exit 0
+endef
+
 define Package/knock-control/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] && exit 0
-/usr/sbin/knock-control prepare-firewall
+/usr/sbin/knock-control migrate || exit 1
+/usr/sbin/knock-control prepare-firewall || exit 1
+if /usr/sbin/knock-control configured >/dev/null 2>&1; then
+    /usr/sbin/knock-control generate-config || exit 1
+    if /usr/sbin/knock-control activated >/dev/null 2>&1; then
+        /usr/sbin/knock-control firewall || exit 1
+    fi
+fi
 endef
 
 define Build/Prepare
@@ -55,17 +70,14 @@ define Build/Compile
 endef
 
 define Package/knock-control/install
-	$(INSTALL_DIR) $(1)/usr/sbin $(1)/usr/share/knock-control/app $(1)/usr/share/knock-control/http/cgi-bin
+	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/knock-control-daemon $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/knock-control $(1)/usr/sbin/
-	$(INSTALL_BIN) ./files/control.cgi $(1)/usr/share/knock-control/http/cgi-bin/control
-	$(CP) $(PKG_BUILD_DIR)/web-app/. $(1)/usr/share/knock-control/app/
 	$(INSTALL_DIR) $(1)/etc/knock-control $(1)/etc/config $(1)/etc/init.d
 	$(INSTALL_CONF) ./files/knock-control.config $(1)/etc/config/knock-control
 	chmod 700 $(1)/etc/knock-control
 	$(INSTALL_CONF) ./files/firewall.nft $(1)/etc/knock-control/firewall.nft
 	$(INSTALL_BIN) ./files/knock-control.init $(1)/etc/init.d/knock-control
-	$(INSTALL_BIN) ./files/knock-control-api.init $(1)/etc/init.d/knock-control-api
 	$(INSTALL_BIN) ./files/knock-control-firewall.init $(1)/etc/init.d/knock-control-firewall
 	$(INSTALL_DIR) $(1)/usr/share/nftables.d/table-post $(1)/usr/share/nftables.d/ruleset-post
 	$(INSTALL_DATA) ./files/table.nft $(1)/usr/share/nftables.d/table-post/90-knock-control.nft

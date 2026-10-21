@@ -6,11 +6,11 @@ import subprocess
 import zipfile
 root=Path(__file__).resolve().parents[1]
 subprocess.run(['/usr/bin/python3',str(root/'scripts/package-extension.py')],check=True)
-dist=root/'dist';version='3.1.1'
+dist=root/'dist';version='4.0.3'
 files=[]
 for directory in ('src','controller','extension','packaging','scripts','tests','doc'):
     for path in (root/directory).rglob('*'):
-        if path.is_file() and '__pycache__' not in path.parts and (path.suffix in ('.py','.sh','.cgi','.config','.js','.json','.html','.css','.png','.svg','.webmanifest','.LICENSE','.c','.h','.mjs','.md','.in','.1','.init','.nft') or path.name=='Makefile'):
+        if path.is_file() and '__pycache__' not in path.parts and (path.suffix in ('.py','.sh','.cgi','.config','.js','.json','.html','.css','.png','.svg','.webmanifest','.LICENSE','.c','.h','.mjs','.md','.in','.1','.init','.nft','.service') or path.name=='Makefile'):
             files.append(path)
 for name in ('README.md','README_RU.md','COPYING','THIRD_PARTY.json','Makefile.am','configure.ac','knockd.conf','knockd.sh','ChangeLog','TODO'):
     if (root/name).is_file():files.append(root/name)

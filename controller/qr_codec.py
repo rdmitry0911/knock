@@ -7,14 +7,14 @@ import zlib
 from urllib.parse import urlsplit, parse_qs
 from common import client_bundle
 
-PREFIX = 'kc2_'
+PREFIX = 'kc3_'
 
 
 def enrollment_url(bundle):
     bundle = client_bundle(bundle)
     # Compact transport keeps one whole profile in one camera-readable QR.
     cfg = bundle['settings']
-    compact = {'v':2,'u':bundle['server_url'],'f':bundle['server_certificate_sha256'],
+    compact = {'v':3,
                'i':bundle['profile_id'],'n':bundle['name'],'k':bundle['secret'],
                'h':bundle['knock_host'],'r':bundle['revision'],
                's':[cfg['base'],cfg['ports'],cfg['idle_timeout'],
@@ -22,8 +22,10 @@ def enrollment_url(bundle):
                     cfg['seq_timeout'],int(cfg['ip_protection'])]}
     if 'rules' in cfg: compact['s'].append(cfg['rules'])
     if 'ice_version' in bundle:compact['w']=bundle['ice_version']
+    for key in ('ice_host','ice_source','stun_server'):
+        if key in bundle:compact[key]=bundle[key]
     encoded = base64.urlsafe_b64encode(json.dumps(compact,ensure_ascii=False,separators=(',',':')).encode()).decode().rstrip('=')
-    return bundle['server_url']+'/app/#import='+PREFIX+encoded
+    return 'knock-control://import/#import='+PREFIX+encoded
 
 
 def decode_enrollment(text):
@@ -32,27 +34,28 @@ def decode_enrollment(text):
     if text.lstrip().startswith('{'):
         return client_bundle(json.loads(text))
     parsed = urlsplit(text)
-    if parsed.scheme!='https' or parsed.path!='/app/' or parsed.username or parsed.password or parsed.query:
+    modern=parsed.scheme=='knock-control' and parsed.netloc=='import' and parsed.path=='/'
+    if not modern and (parsed.scheme!='https' or parsed.path!='/app/' or parsed.username or parsed.password or parsed.query):
         raise ValueError('Use a Knock Control enrollment QR')
     values=parse_qs(parsed.fragment)
     tokens=values.get('import',[])
-    if len(tokens)!=1 or not tokens[0].startswith(PREFIX):
+    if len(tokens)!=1 or not tokens[0].startswith(PREFIX if modern else 'kc2_'):
         raise ValueError('Use a Knock Control enrollment QR')
     token=tokens[0][len(PREFIX):]
     try:
         value=json.loads(base64.b64decode(token+'='*((-len(token))%4),altchars=b'-_',validate=True))
         cfg=value['s']
-        if value['v']!=2 or not isinstance(cfg,list) or len(cfg) not in (6,7) or cfg[5] not in (0,1) or not isinstance(cfg[3],str) or any(p not in 'tu' for p in cfg[3]):
+        if value['v']!=(3 if modern else 2) or not isinstance(cfg,list) or len(cfg) not in (6,7) or cfg[5] not in (0,1) or not isinstance(cfg[3],str) or any(p not in 'tu' for p in cfg[3]):
             raise ValueError()
-        bundle=client_bundle({'format':'knock-control-client-v2','server_url':value['u'],
-            'server_certificate_sha256':value['f'],'profile_id':value['i'],'name':value['n'],
+        bundle=client_bundle({'format':'knock-control-client-v3' if modern else 'knock-control-client-v2','server_url':value.get('u',''),
+            **{k:value[k] for k in ('ice_host','ice_source','stun_server') if k in value},'profile_id':value['i'],'name':value['n'],
             'secret':value['k'],'knock_host':value['h'],'revision':value['r'],**({'ice_version':value['w']} if 'w' in value else {}),
             'settings':{'base':cfg[0],'ports':cfg[1],'idle_timeout':cfg[2],
                         'protocols':['tcp' if p=='t' else 'udp' for p in cfg[3]],
                         'seq_timeout':cfg[4],'ip_protection':bool(cfg[5]), **({'rules':cfg[6]} if len(cfg)==7 else {})}})
     except (ValueError,KeyError,TypeError,IndexError):
         raise ValueError('Invalid enrollment QR') from None
-    if parsed.netloc!=urlsplit(bundle['server_url']).netloc:
+    if not modern and parsed.netloc!=urlsplit(value['u']).netloc:
         raise ValueError('QR destination differs from its profile server')
     return bundle
 

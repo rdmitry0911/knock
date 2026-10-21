@@ -16,7 +16,9 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/run
+StateDirectory=knock-control
+StateDirectoryMode=0700
+ReadWritePaths=/run /var/lib/knock-control
 CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
 
 [Install]

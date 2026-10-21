@@ -48,7 +48,7 @@ def main():
                 ns(client,'ip','link','set','lo','up');ns(client,'ip','addr','add',f'10.230.{i+1}.2/24','dev',eth);ns(client,'ip','link','set',eth,'up');ns(client,'ip','route','add','default','via',f'10.230.{i+1}.1')
             server.CONFIG=tmp/'settings.json';server.DAEMON_CONFIG=tmp/'knockd.conf';server.REPLAYS=tmp/'replay.sqlite';server.IPSET=os.environ.get('IPSET_BIN',server.IPSET)
             control=tmp/'control';control.write_text('#!/usr/bin/python3\nimport sys,fcntl\nsys.path.insert(0,'+repr(str(ROOT/'controller'))+')\nimport server\nfrom pathlib import Path\nserver.CONFIG=Path('+repr(str(server.CONFIG))+')\nserver.REPLAYS=Path('+repr(str(server.REPLAYS))+')\nserver.IPSET='+repr(server.IPSET)+'\nwith open('+repr(str(tmp/'lock'))+',"a") as lock:\n fcntl.flock(lock,fcntl.LOCK_EX)\n server.access_ice(*sys.argv[2:])\n');control.chmod(0o700);server.CONTROL=str(control)
-            db={'schema':2,'activated':True,'interface':'wan','api_bind':'203.0.113.1','api_port':18443,'server_url':'https://203.0.113.1:18443','knock_host':'203.0.113.1','certificate_sha256':'a'*64,'protected_ports':[],'profiles':{}}
+            db={'schema':2,'activated':True,'interface':'wan','knock_host':'203.0.113.1','protected_ports':[],'profiles':{}}
             ident=server.issue(db,'Shared ICE',[23456],[23456],10,60);common.atomic_write(server.CONFIG,json.dumps(db));common.atomic_write(server.DAEMON_CONFIG,server.render(db));server.firewall(db)
             def start_daemon():
                 return subprocess.Popen([str(ROOT/'knockd'),'-c',str(server.DAEMON_CONFIG)],stdout=(tmp/'daemon.log').open('a'),stderr=subprocess.STDOUT)

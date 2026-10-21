@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Build one ICE/HTTPS extension per browser and the universal web application."""
+"""Build one knock-only extension per browser and a standalone static client."""
 import json
 from pathlib import Path
 import shutil
@@ -15,7 +15,7 @@ for retired in ('chromium', 'firefox'):
         (dist / f'knock-control-{retired}{suffix}').unlink(missing_ok=True)
 source = root / 'extension'
 web_files = ('app.html','app.js','bridge.js','browser-client.js','ice-client.js','profile-codec.js',
-             'transport-config.js','qr.js','sw.js','style.css','app.webmanifest','i18n.js','ice-operation.js','_locales',
+             'qr.js','sw.js','style.css','app.webmanifest','i18n.js','ice-operation.js','_locales',
              'icon.svg','icon-48.png','icon-180.png','icon-192.png','icon-512.png','vendor/jsQR.js','vendor/jsQR.LICENSE')
 icons = {str(size):f'icon-{size}.png' for size in (16,32,48,96,128)}
 
@@ -45,31 +45,26 @@ for variant in ('chromium-browser','firefox-mobile','web-app'):
     else:
         shutil.copytree(source, output, dirs_exist_ok=True)
     shutil.copy2(root / 'THIRD_PARTY.json',output / 'THIRD_PARTY.json')
-    if variant in ('web-app','chromium-browser','firefox-mobile'):
-        (output / 'transport-config.js').write_text("export const MODE = 'browser';\n")
     if variant == 'web-app':
         archive_tree(output,'knock-control-web-app.zip')
         print(output)
         continue
     manifest = json.loads((source / 'manifest.json').read_text())
-    manifest['version'] = '3.1.1'
+    manifest['version'] = '4.0.3'
     manifest['icons'] = icons
     if variant == 'chromium-browser':
-        manifest.update({'permissions':['storage','offscreen'], 'optional_host_permissions':['https://*/*'],
+        manifest.update({'permissions':['storage','offscreen'],
             'background':{'service_worker':'background.js','type':'module'},
-            'action':{'default_title':'__MSG_extensionName__','default_popup':'popup.html','default_icon':icons},
-            'options_ui':{'page':'app.html','open_in_tab':True}})
+            'action':{'default_title':'__MSG_extensionName__','default_popup':'popup.html','default_icon':icons}})
     elif variant == 'firefox-mobile':
         shutil.copy2(source/'background-firefox.js',output/'background.js')
         for chromium_file in ('chromium-ice.js','offscreen.js','offscreen.html','background-firefox.js'):
             (output/chromium_file).unlink(missing_ok=True)
         # Firefox uses the same popup on desktop and Android; camera import has a full view.
-        manifest = {'manifest_version':2,'name':'__MSG_extensionName__','version':'3.1.1','default_locale':'en',
+        manifest = {'manifest_version':2,'name':'__MSG_extensionName__','version':'4.0.3','default_locale':'en',
             'description':manifest['description'],'icons':icons,'permissions':['storage'],
-            'optional_permissions':['https://*/*'],
             'background':{'scripts':['background.js'],'type':'module','persistent':False},
             'browser_action':{'default_title':'__MSG_extensionName__','default_popup':'popup.html','default_icon':icons},
-            'options_ui':{'page':'app.html','open_in_tab':True},
             'content_security_policy':"script-src 'self'; object-src 'none'",
             'browser_specific_settings':gecko('knock-control-mobile@local',True)}
     (output / 'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')

@@ -38,7 +38,6 @@ def set_definition(profile):
 def rules(db):
     incoming=[];outgoing=[]
     if db.get('activated',False):
-        incoming.append(f'meta nfproto ipv4 tcp dport {db["api_port"]} accept')
         for ident,profile in sorted(db['profiles'].items()):
             if profile['revoked'] or not profile['enabled']:continue
             cfg=server.config_for(db,profile)

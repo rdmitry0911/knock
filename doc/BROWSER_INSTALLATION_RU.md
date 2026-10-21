@@ -1,20 +1,20 @@
 # Установка расширений и подпись Firefox
 
-В [релизе v3.1.1](https://github.com/rdmitry0911/knock/releases/tag/v3.1.1)
-доступен один [подписанный Mozilla XPI для Firefox](https://github.com/rdmitry0911/knock/releases/download/v3.1.1/knock-control-firefox-3.1.1.xpi)
+В [релизе v4.0.3](https://github.com/rdmitry0911/knock/releases/tag/v4.0.3)
+доступен один [подписанный Mozilla XPI для Firefox](https://github.com/rdmitry0911/knock/releases/download/v4.0.3/knock-control-firefox-4.0.3.xpi)
 на компьютере и Android. Постоянная установка и сохранение после перезапуска
 проверены в официальном Firefox Stable 158.0.1 для Linux при включённой проверке
-подписи; неподписанный архив отклоняется. [Отчёт](firefox-signed-install-report.json).
+подписи; неподписанный архив отклоняется. [Отчёт](v4-firefox-signature-report.json).
 
 | Браузер | Как установить текущую сборку |
 |---|---|
-| Firefox на компьютере | Скачайте `knock-control-firefox-3.1.1.xpi`; установите через `about:addons` → шестерёнка → «Установить дополнение из файла» |
-| Firefox Android 142+ | Тот же `knock-control-firefox-3.1.1.xpi` через установку из файла (порядок ниже) либо веб-приложение |
+| Firefox на компьютере | Скачайте `knock-control-firefox-4.0.3.xpi`; установите через `about:addons` → шестерёнка → «Установить дополнение из файла» |
+| Firefox Android 142+ | Тот же `knock-control-firefox-4.0.3.xpi` через установку из файла (порядок ниже) либо веб-приложение |
 | Chrome/Chromium/Edge на компьютере | Распаковать `knock-control-chromium-browser.zip`, открыть `chrome://extensions` или `edge://extensions`, включить режим разработчика, выбрать «Загрузить распакованное расширение» и папку с `manifest.json` |
-| Chrome Android, браузеры iPhone/iPad | Веб-приложение сервера `/app/`, предварительно сохранённое для работы без доступного сайта |
+| Chrome Android, браузеры iPhone/iPad | Отдельное статическое веб-приложение на доверенном HTTPS-хостинге, предварительно сохранённое |
 
 Для Firefox поставляется одно расширение: `firefox-mobile` работает на компьютере
-и Android через ICE/HTTPS. Для Chrome/Chromium/Edge также поставляется один вариант
+и Android через ICE. Для Chrome/Chromium/Edge также поставляется один вариант
 `chromium-browser`. Локальный помощник устанавливать не требуется.
 Chrome/Edge не устанавливают ZIP как обычное расширение по двойному щелчку.
 Для установки из каталога браузера нужна отдельная публикация в магазине.

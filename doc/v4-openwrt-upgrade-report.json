@@ -1,0 +1,70 @@
+{
+  "result": "PASS",
+  "version": "4.0.3",
+  "image": "openwrt-25.12.5-x86-64-generic-ext4-combined.img.gz",
+  "image_sha256": "23e2538e8ab0eb52dfed1c65d608ecdb71ffd432dd54885da138ae67cd9e4461",
+  "architecture": "x86_64",
+  "virtualization": "QEMU KVM",
+  "phases": [
+    {
+      "phase": "boot",
+      "result": "PASS",
+      "release": {
+        "distribution": "OpenWrt",
+        "version": "25.12.5",
+        "firmware_url": "https://downloads.openwrt.org/",
+        "revision": "r33051-f5dae5ece4",
+        "target": "x86/64",
+        "description": "OpenWrt 25.12.5 r33051-f5dae5ece4",
+        "builddate": "1782737960"
+      },
+      "kernel": "6.12.94",
+      "model": "QEMU Ubuntu 24.04 PC v2 (i440FX + PIIX, arch_caps fix, 1996)"
+    },
+    {
+      "phase": "upgrade",
+      "result": "PASS",
+      "checks": [
+        "Active HTTPS API stopped and its init/CGI removed",
+        "Credential secret and revision preserved",
+        "Existing v2 profiles remain usable with new ICE client"
+      ]
+    },
+    {
+      "phase": "knock-only-install",
+      "result": "PASS",
+      "sha256": "80525bd2d47ce211eb27261b0d0b4299876ee976fc73d128f0870ebbd117ab97",
+      "checks": [
+        "No Python, HTTP API, CGI, bundled web client or TLS generation",
+        "No TCP 8443 listener or unconditional firewall accept",
+        "Standard UCI config, native daemon and firewall4 check"
+      ]
+    },
+    {
+      "phase": "browser-ice",
+      "result": "PASS",
+      "checks": [
+        "real Chromium and Firefox ICE over WAN UDP forwarding without a management service",
+        "installed daemon + C controller + nftables ON/OFF; no UDP listener on knock port",
+        "captured ICE ON remains rejected after daemon restart by durable SQLite journal"
+      ]
+    },
+    {
+      "phase": "reboot",
+      "result": "PASS",
+      "checks": [
+        "UCI credentials survive reboot",
+        "Daemon autostarts without API"
+      ]
+    },
+    {
+      "phase": "reinstall",
+      "result": "PASS",
+      "checks": [
+        "Credentials survive removal and reinstall",
+        "API remains absent"
+      ]
+    }
+  ],
+  "tested_date": "2026-10-21"
+}

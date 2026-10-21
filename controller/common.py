@@ -128,18 +128,12 @@ def read_json(path):
 
 
 PROFILE_ID = re.compile(r'[0-9a-f]{24}')
-EDITABLE = frozenset(('ports', 'rules', 'idle_timeout', 'protocols', 'seq_timeout', 'ip_protection'))
 
 
 def profile_id(value):
     if not isinstance(value, str) or not PROFILE_ID.fullmatch(value):
         raise ValueError('Invalid profile ID')
     return value
-
-
-def api_signature(secret, timestamp, nonce, body):
-    message = f'knock-control:api:v2:POST:/v1/control:{timestamp}:{nonce}:'.encode('ascii') + hashlib.sha256(body).hexdigest().encode('ascii')
-    return hmac.new(base64.b32decode(secret), message, hashlib.sha256).hexdigest()
 
 
 def ice_token(bundle, action, source, *, now=None, nonce=None, issued_ms=None):
@@ -169,38 +163,30 @@ def verify_ice_token(bundle, token, source, *, now=None):
 
 def client_bundle(value):
     from urllib.parse import urlsplit
-    if not isinstance(value, dict) or value.get('format') != 'knock-control-client-v2':
+    if not isinstance(value,dict) or value.get('format') not in ('knock-control-client-v2','knock-control-client-v3'):
         raise ValueError('Import a client file issued by the server')
-    ident = profile_id(value.get('profile_id'))
-    url = value.get('server_url', '')
-    if not isinstance(url, str):
-        raise ValueError('Invalid HTTPS server URL')
-    parsed = urlsplit(url)
-    if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.path not in ('', '/') or parsed.query or parsed.fragment:
-        raise ValueError('Server URL must be https://host:port')
-    try:
-        integer(parsed.port or 443, 1, 65535, 'API port')
-    except ValueError:
-        raise ValueError('Invalid API port') from None
-    pin = value.get('server_certificate_sha256', '')
-    if not isinstance(pin, str) or not re.fullmatch(r'[0-9a-f]{64}', pin):
-        raise ValueError('Server certificate fingerprint is required')
-    if not isinstance(value.get('settings'), dict):
-        raise ValueError('Client settings must be an object')
-    config = settings({**value.get('settings', {}), 'secret': value.get('secret'), 'profile_id': ident})
-    host = value.get('knock_host', parsed.hostname)
-    if not isinstance(host, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}', host):
-        raise ValueError('Invalid knock host')
-    name = value.get('name', ident)
-    if not isinstance(name, str) or not 1 <= len(name) <= 80 or any(ord(ch) < 32 for ch in name):
-        raise ValueError('Invalid profile name')
-    ip = value.get('public_ip', '')
-    ip = str(ipaddress.IPv4Address(ip)) if ip else ''
-    result = {'format': 'knock-control-client-v2', 'profile_id': ident, 'name': name,
-            'server_url': url.rstrip('/'), 'server_certificate_sha256': pin,
-            'knock_host': host, 'secret': config['secret'], 'settings': public_settings(config),
-            'public_ip': ip, 'revision': integer(value.get('revision', 1), 1, 2147483647, 'revision')}
-    if 'ice_version' in value: result['ice_version']=integer(value['ice_version'],1,1,'ice_version')
+    ident=profile_id(value.get('profile_id'))
+    legacy=value['format']=='knock-control-client-v2'
+    legacy_url=value.get('server_url','') if legacy else ''
+    if not isinstance(legacy_url,str):raise ValueError('Invalid legacy profile URL')
+    parsed=urlsplit(legacy_url)
+    if legacy and (parsed.scheme!='https' or not parsed.hostname or parsed.username or parsed.password or parsed.path not in ('','/') or parsed.query or parsed.fragment):
+        raise ValueError('Invalid legacy profile URL')
+    if not isinstance(value.get('settings'),dict):raise ValueError('Client settings must be an object')
+    config=settings({**value['settings'],'secret':value.get('secret'),'profile_id':ident})
+    host=value.get('knock_host',parsed.hostname)
+    if not isinstance(host,str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}',host):raise ValueError('Invalid knock host')
+    name=value.get('name',ident)
+    if not isinstance(name,str) or not 1<=len(name)<=80 or any(ord(c)<32 for c in name):raise ValueError('Invalid profile name')
+    result={'format':'knock-control-client-v3','profile_id':ident,'name':name,'knock_host':host,
+            'secret':config['secret'],'settings':public_settings(config),'ice_version':1,
+            'public_ip':str(ipaddress.IPv4Address(value['public_ip'])) if value.get('public_ip') else '',
+            'revision':integer(value.get('revision',1),1,2147483647,'revision')}
+    for key in ('ice_host','ice_source'):
+        if value.get(key):result[key]=str(ipaddress.IPv4Address(value[key]))
+    if 'stun_server' in value:
+        if not isinstance(value['stun_server'],str) or not re.fullmatch(r'stun:[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}:[0-9]{1,5}',value['stun_server']):raise ValueError('Invalid STUN server')
+        integer(int(value['stun_server'].rsplit(':',1)[1]),1,65535,'STUN port');result['stun_server']=value['stun_server']
     return result
 
 

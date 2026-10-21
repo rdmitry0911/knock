@@ -55,7 +55,7 @@ certificate=''.join((work/'server.crt').read_text().splitlines()[1:-1])
 request('POST','/moz/context',{'context':'chrome'})
 try:evaluate('const db=Cc["@mozilla.org/security/x509certdb;1"].getService(Ci.nsIX509CertDB);db.addCertFromBase64(arguments[0],"C,,");',certificate)
 finally:request('POST','/moz/context',{'context':'content'})
-rpc('open-api');checks=[]
+rpc('open-web');checks=[]
 handles=request('GET','/window/handles')
 # Android may show its native home screen while closing restored tabs; retain them.
 request('POST','/window',{'handle':handles[-1]}) if handles else request('POST','/window/new',{'type':'tab'})
@@ -95,9 +95,13 @@ if mode=='extension':
     checks.append('Original unsigned release XPI temporarily installed in real Firefox Android; QR text imported')
 else:
     request('POST','/url',{'url':'about:blank'})
-    request('POST','/url',{'url':(work/'enrollment.txt').read_text()});message('Profile imported. Press ON.');client=bundle['server_url']+'/app/'
-    assert evaluate('return location.hash')=='';checks.append('QR enrollment link imported and secret fragment removed')
-click('#connection-panel summary');evaluate("document.querySelector('[name=stun_server]').value=arguments[0]",bundle['stun_server']);click('#connection-form button');message('Connection saved on this device.')
+    client=json.loads((work/'ready.json').read_text())['web_url'];request('POST','/url',{'url':client})
+    for _ in range(100):
+        if evaluate("return document.querySelector('#message')?.textContent"):break
+        time.sleep(.1)
+    if evaluate("return document.querySelector('#import-panel').hidden"):click('#add-profile')
+    evaluate("document.querySelector('#import-details').open=true;document.querySelector('#import-text').value=arguments[0]",(work/'enrollment.txt').read_text());click('#import-button');message('Profile imported. Press ON.')
+    checks.append('Offline QR text imported from standalone static client')
 request('POST','/refresh',{});message('Press ON.');checks.append('Profile persists after page reload')
 if mode=='pwa':
     request('POST','/execute/async',{'script':'const done=arguments[arguments.length-1];navigator.serviceWorker.ready.then(()=>done(true));','args':[]})
@@ -118,31 +122,29 @@ def action(which):
     switch(client_handle);click('#'+which);message('Signed UDP knock {operation} sent. No server response was requested.',{'operation':'ON' if which=='open' else 'OFF'});return rpc('status')
 
 assert not granted() and not reachable(),'Service already open before ON'
-before=rpc('close-api')
+before=rpc('close-web')
 if mode=='pwa':
     request('POST','/url',{'url':'about:blank'});request('POST','/url',{'url':client});message('Press ON.');checks.append('PWA opens from saved shell with stored profile while HTTPS server is stopped')
 on=action('open');assert any(on['grants'].values()) and reachable(),'Firefox Android ICE ON failed'
 print(json.dumps({'phase':'on','mode':mode,'grants':on['grants']}),flush=True)
 action('close');assert not granted() and not reachable(),'Firefox Android ICE OFF failed'
-checks.append('ON/OFF opens/closes actual protected HTTP service with HTTPS management listener closed')
+checks.append('ON/OFF opens/closes actual protected HTTP service with static bootstrap host stopped; no control API installed')
 rpc('restart-daemon');rpc('replay');assert not granted(),'Captured ON replay reopened access';checks.append('Captured ON replay rejected after daemon restart')
 action('open');time.sleep(17);assert not granted() and not reachable(),'Idle timeout failed';checks.append('Idle lease expires without protected traffic')
 after=rpc('status');assert after['api_requests']==before['api_requests'] and not after['knock_udp_listener'] and not after['stun_secret_leaks'] and after['daemon_alive']
-rpc('open-api');click('#status')
-if mode=='extension':
-    subprocess.run([adb,'shell','uiautomator','dump','/sdcard/knock-ui.xml'],capture_output=True,check=True)
-    xml=subprocess.check_output([adb,'shell','cat','/sdcard/knock-ui.xml'],text=True)
-    for n in ElementTree.fromstring(xml).iter('node'):
-        if n.get('text')=='Allow':
-            x1,y1,x2,y2=map(int,re.findall(r'\d+',n.get('bounds')))
-            subprocess.run([adb,'shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)],check=True)
-            break
-disabled=localized('Access disabled')
-for _ in range(120):
-    if disabled in evaluate("return document.querySelector('#state').textContent"):break
-    time.sleep(.1)
-else:raise AssertionError('Signed status failed')
-checks.append('Signed HTTPS status works in Firefox Android')
 (work/('firefox-'+mode+'-android.png')).write_bytes(base64.b64decode(request('GET','/screenshot')))
-result={'result':'PASS','browser':'Firefox Android','mode':mode,'interface_language':evaluate('return document.documentElement.lang'),'user_agent':ua,'checks':checks,'api_requests_during_ice':after['api_requests']-before['api_requests'],'knock_udp_listener':after['knock_udp_listener'],'certificate_exception':'Fixture CA installed only in the disposable Firefox NSS profile; WebDriver acceptInsecureCerts also enabled','extension_installation':'temporary debugging install; permanent Firefox installation still requires Mozilla signature' if mode=='extension' else None}
+removed_key=evaluate("return document.querySelector('#profiles').value")
+click('#delete-profile');request('POST','/alert/accept',{});message('Profile removed from this browser.')
+evaluate('window.knockBeforeReload=true');navigation_wait='complete'
+try:
+    request('POST','/url',{'url':'about:blank'});request('POST','/url',{'url':client})
+except RuntimeError as error:
+    if 'Navigation timed out' not in str(error):raise
+    navigation_wait='Full-load wait timed out; fresh cached document and usable UI checked separately'
+for _ in range(100):
+    if evaluate("return !window.knockBeforeReload && document.querySelector('#message')?.textContent && ![...document.querySelectorAll('#profiles option')].some(n=>n.value===arguments[0])",removed_key):break
+    time.sleep(.1)
+else:raise AssertionError('Deleted profile returned after reload')
+checks.append('Offline local profile deletion persists after reload')
+result={'result':'PASS','browser':'Firefox Android','mode':mode,'extension_version':evaluate('return browser.runtime.getManifest().version') if mode=='extension' else None,'navigation_wait':navigation_wait,'interface_language':evaluate('return document.documentElement.lang'),'user_agent':ua,'checks':checks,'api_requests_during_ice':after['api_requests']-before['api_requests'],'knock_udp_listener':after['knock_udp_listener'],'certificate_exception':'Fixture CA installed only in the disposable Firefox NSS profile; WebDriver acceptInsecureCerts also enabled','extension_installation':'temporary debugging install; permanent Firefox installation still requires Mozilla signature' if mode=='extension' else None}
 (work/('firefox-'+mode+'-report.json')).write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result),flush=True)

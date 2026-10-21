@@ -81,32 +81,8 @@ int main(int argc, char **argv) {
     J *db = get(fixture, "db");
     const char *id = sget(fixture, "id");
     J *profile = get(get(db, "profiles"), id);
-    const char *body = sget(fixture, "body"), *auth = sget(fixture, "authorization");
     const char *ip = sget(fixture, "ip");
     ice_checks(fixture, profile, id, ip);
-    assert(!strcmp(authenticate(db, auth, body, strlen(body)), id));
-    REJECT(authenticate(db, auth, body, strlen(body))); /* durable replay */
-    REJECT(authenticate(db, auth, "{}", 2));            /* body substitution */
-    J *request = get(fixture, "request");
-    char *nonce = verify_browser_proof(db, profile, request, ip);
-    assert(!strcmp(nonce, sget(fixture, "proof_nonce")));
-    REJECT(verify_browser_proof(db, profile, request, "127.0.0.99"));
-    J *broken = copy(request);
-    text(broken, "action", "browser-close");
-    REJECT(verify_browser_proof(db, profile, broken, ip));
-    broken = copy(request);
-    json_object_array_put_idx(get(broken, "sequence"), 0, json_object_new_int(9));
-    REJECT(verify_browser_proof(db, profile, broken, ip));
-    broken = copy(request);
-    text(broken, "confirmation", "AAAA");
-    REJECT(verify_browser_proof(db, profile, broken, ip));
-    J *noprotection = get(fixture, "request_no_ip");
-    J *unbound = copy(profile);
-    boolean(get(unbound, "settings"), "ip_protection", false);
-    free(verify_browser_proof(db, unbound, noprotection, "127.0.0.99"));
-    char code[7];
-    totp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", 1, code);
-    assert(!strcmp(code, "287082"));
     J *cfg = config_for(db, profile), *invalid = copy(cfg);
     number(invalid, "idle_timeout", 9);
     REJECT(settings(invalid));
@@ -136,6 +112,6 @@ int main(int argc, char **argv) {
     atomic(fmt("%s/enrollment.txt", directory), enrollment(b));
     qr_output(b, fmt("%s/profile.png", directory), false);
     qr_output(b, fmt("%s/profile.svg", directory), false);
-    printf("PASS: native TOTP, HMAC, browser proof, validation, QR and %d rejections\n", rejected);
+    printf("PASS: native ICE HMAC, replay ordering, validation, QR and %d rejections\n", rejected);
     return 0;
 }

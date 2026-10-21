@@ -2,56 +2,20 @@
   "m_5d6c2b46": {
     "message": "Un profil Knock Control fourni par le serveur est requis"
   },
-  "m_83dbae11": {
-    "message": "Accès désactivé"
-  },
-  "m_58b104fa": {
-    "message": "Accès activé"
-  },
-  "m_aa539a15": {
-    "message": "L’accès a été désactivé."
-  },
-  "m_755700f3": {
-    "message": "Accès non vérifié"
-  },
   "m_e5d83609": {
     "message": "Ajouter un profil"
   },
   "m_46dc0362": {
     "message": "Ajoutez cette page à l’écran d’accueil pour un accès rapide."
   },
-  "m_974e8a53": {
-    "message": "Ports TCP supplémentaires"
-  },
-  "m_49245e8e": {
-    "message": "Autorisez l’accès à ce serveur : {origin}"
-  },
-  "m_25939de3": {
-    "message": "Ports TCP autorisés : {ports}. Règles : {rules}. Inactivité maximale : {seconds} s."
-  },
-  "m_3aeaed6f": {
-    "message": "Fermeture après {seconds} s sans trafic vers le service."
-  },
   "m_292b282e": {
     "message": "Caméra indisponible. Importez une image QR."
-  },
-  "m_46d042c7": {
-    "message": "Connexion sécurisée impossible. Vérifiez le réseau, le certificat HTTPS et les autorisations du navigateur."
-  },
-  "m_66a5f0ca": {
-    "message": "Impossible de déterminer l’IPv4 publique via STUN. Saisissez-la manuellement."
   },
   "m_4957159b": {
     "message": "Impossible de lire cette image"
   },
-  "m_2b89766f": {
-    "message": "Vérifier l’état"
-  },
   "m_9e507fd8": {
     "message": "Vérifiez la plage de ports et le délai"
-  },
-  "m_732bdad5": {
-    "message": "Vérification…"
   },
   "m_b1827bc8": {
     "message": "Choisissez une image QR de 8 Mo maximum"
@@ -62,35 +26,11 @@
   "m_f7366892": {
     "message": "Fermer la caméra"
   },
-  "m_1d047c51": {
-    "message": "Connexion enregistrée sur cet appareil."
-  },
-  "m_3fe23d46": {
-    "message": "Paramètres de connexion"
-  },
   "m_227026c0": {
     "message": "Désactivation de l’accès…"
   },
-  "m_72223725": {
-    "message": "Détecter via STUN à chaque ON/OFF"
-  },
-  "m_af0f01b1": {
-    "message": "Accès d’urgence aux services protégés lorsque le VPN est indisponible, avec profils TOTP fournis par le serveur et délais d’inactivité par IP."
-  },
   "m_9c9e6775": {
     "message": "Activation de l’accès…"
-  },
-  "m_115c6024": {
-    "message": "Saisissez le code Authenticator à 6 chiffres"
-  },
-  "m_237aef80": {
-    "message": "Depuis le profil"
-  },
-  "m_1adbe8f4": {
-    "message": "Le knock ICE n’a pas démarré. Autorisez WebRTC/UDP ou choisissez HTTPS."
-  },
-  "m_c7afd4f5": {
-    "message": "Délai d’inactivité, secondes"
   },
   "m_573e0af4": {
     "message": "Importer"
@@ -125,14 +65,8 @@
   "m_37f8693": {
     "message": "Serveur STUN invalide"
   },
-  "m_d155bd45": {
-    "message": "Paramètres de connexion invalides"
-  },
   "m_7b80d433": {
     "message": "QR de configuration invalide"
-  },
-  "m_5b70f016": {
-    "message": "Champ {field} invalide"
   },
   "m_80ddcdf3": {
     "message": "Adresse du serveur knock invalide"
@@ -158,44 +92,14 @@
   "m_cdf1d03c": {
     "message": "Secret invalide"
   },
-  "m_30c46225": {
-    "message": "Transport invalide"
-  },
   "m_984b72ce": {
     "message": "Fichier JSON ou texte QR"
-  },
-  "m_51c8f8f6": {
-    "message": "Knock Control"
-  },
-  "m_f1e1bf7": {
-    "message": "Remplacer l’IPv4 du serveur knock"
-  },
-  "m_a00b7d78": {
-    "message": "Les limites sont définies par l’administrateur."
   },
   "m_57c40f0f": {
     "message": "Paramètres du profil manquants"
   },
-  "m_b88a3295": {
-    "message": "Empreinte du certificat du serveur manquante"
-  },
-  "m_85ef5e1f": {
-    "message": "Mon IPv4 publique"
-  },
-  "m_d16bd2f2": {
-    "message": "ON/OFF"
-  },
-  "m_4da33e9e": {
-    "message": "ON/OFF, état et paramètres utilisent HTTPS."
-  },
-  "m_3730d9c8": {
-    "message": "ON/OFF : UDP via WebRTC ICE, sans requête HTTPS. L’état et les paramètres utilisent HTTPS."
-  },
   "m_c8c3476b": {
     "message": "Ouvrir la vue complète"
-  },
-  "m_753b8714": {
-    "message": "Ouvrez l’application web de ce profil : {url}"
   },
   "m_bd9b7e8": {
     "message": "Collez le lien fourni par le serveur"
@@ -212,12 +116,6 @@
   "m_49530b62": {
     "message": "Profil importé. Appuyez sur ON."
   },
-  "m_4d8c7ef6": {
-    "message": "Règles du profil, séparées par des virgules"
-  },
-  "m_d675456f": {
-    "message": "Paramètres du profil"
-  },
   "m_e0588df3": {
     "message": "Image QR"
   },
@@ -227,20 +125,8 @@
   "m_adbb1abf": {
     "message": "QR introuvable. Choisissez une image nette et complète avec sa bordure blanche."
   },
-  "m_a67b9f7e": {
-    "message": "STUN reçoit votre IP, jamais votre secret ni le knock signé. Une IP publique manuelle évite STUN. ICE nécessite le serveur r6 ou ultérieur et la révision actuelle du profil."
-  },
-  "m_2c11c213": {
-    "message": "Serveur STUN pour détecter l’IP publique"
-  },
   "m_cb2c920": {
     "message": "Format du serveur STUN : stun:hôte:port"
-  },
-  "m_fbd68890": {
-    "message": "Enregistrer la connexion"
-  },
-  "m_e1c3ff30": {
-    "message": "Enregistrer sur le serveur"
   },
   "m_b9d8dd7c": {
     "message": "Scannez le QR fourni par le serveur ou choisissez son image."
@@ -248,17 +134,8 @@
   "m_3a5ba55f": {
     "message": "Scanner avec la caméra"
   },
-  "m_f269eee6": {
-    "message": "Séquence envoyée"
-  },
   "m_8aff9210": {
     "message": "Accès au serveur"
-  },
-  "m_ae083b85": {
-    "message": "Définissez l’IPv4 du serveur knock dans les paramètres de connexion pour utiliser ICE."
-  },
-  "m_e572e3c1": {
-    "message": "Paramètres enregistrés. Appuyez sur ON."
   },
   "m_870ac6d5": {
     "message": "Knock UDP signé {operation} envoyé. Aucune réponse du serveur demandée."
@@ -266,41 +143,20 @@
   "m_ca9e287a": {
     "message": "Des ports TCP ou des règles nommées sont requis"
   },
-  "m_d2dd13d9": {
-    "message": "Le code Authenticator est invalide ou expiré"
-  },
   "m_f2ffc9": {
     "message": "L’adresse QR ne correspond pas au serveur du profil"
   },
   "m_dd1501da": {
     "message": "Le QR ou le fichier de profil est trop volumineux"
   },
-  "m_7f9a4b00": {
-    "message": "L’administrateur autorise uniquement le client TCP/UDP pour ce profil"
-  },
   "m_dbbca3cd": {
     "message": "Le stockage local des profils est corrompu"
-  },
-  "m_9e7ee36a": {
-    "message": "La réponse appartient à un autre profil"
-  },
-  "m_abf214c6": {
-    "message": "Le serveur doit utiliser HTTPS"
-  },
-  "m_f9b9e3bf": {
-    "message": "La réponse du serveur est trop volumineuse"
   },
   "m_abd8d76d": {
     "message": "Ceci est un secret Authenticator. Importez le QR du profil Knock Control complet."
   },
   "m_e80c5a2f": {
     "message": "Ce n’est pas un QR de configuration Knock Control"
-  },
-  "m_69f5ea56": {
-    "message": "Ce profil appartient à un autre serveur. Ouvrez {url}"
-  },
-  "m_cc4c7ce4": {
-    "message": "UDP via WebRTC ICE, sans API HTTPS"
   },
   "m_5ba4da28": {
     "message": "Opération inconnue"
@@ -314,26 +170,11 @@
   "m_5f2a0fdf": {
     "message": "WebRTC indisponible dans ce navigateur"
   },
-  "m_4b6dacef": {
-    "message": "Vous pouvez maintenant utiliser le service protégé."
-  },
-  "m_ada7afdb": {
-    "message": "aucun"
-  },
-  "m_7fc72fc6": {
-    "message": "ssh_lan,udp_service,ping"
-  },
-  "m_2de77f31": {
-    "message": "Aucune réponse de l’extension"
-  },
-  "m_37f75f9d": {
-    "message": "Le serveur a refusé la requête"
-  },
   "extensionName": {
     "message": "Knock Control"
   },
   "extensionDescription": {
-    "message": "Accès d’urgence aux services protégés lorsque le VPN est indisponible, avec profils TOTP fournis par le serveur et délais d’inactivité par IP."
+    "message": "ON/OFF par UDP knock et gestion locale des profils."
   },
   "m_31917eab": {
     "message": "Importez un profil JSON fourni par le serveur."
@@ -346,5 +187,32 @@
   },
   "m_d4157397": {
     "message": "Sur ordinateur, importez un profil JSON."
+  },
+  "m_981e9b03": {
+    "message": "Supprimer le profil"
+  },
+  "m_51dc664e": {
+    "message": "Supprimer le profil {name} de ce navigateur ?"
+  },
+  "m_3ec011b4": {
+    "message": "Profil supprimé de ce navigateur."
+  },
+  "m_6b47b3af": {
+    "message": "Importez d’abord un profil fourni par le serveur"
+  },
+  "m_4b51502a": {
+    "message": "Réexportez ce profil depuis un serveur compatible ICE"
+  },
+  "m_e7ccdc6b": {
+    "message": "URL de l’ancien profil invalide"
+  },
+  "m_53461981": {
+    "message": "Impossible de déterminer l’IPv4 publique via STUN. Demandez un profil avec votre IPv4 publique à l’administrateur."
+  },
+  "m_b0341bda": {
+    "message": "ICE knock n’a pas démarré. Autorisez WebRTC/UDP."
+  },
+  "m_3f9b9f70": {
+    "message": "Demandez à l’administrateur un profil avec l’adresse IPv4 du serveur knock."
   }
 }

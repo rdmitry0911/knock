@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Native OpenWrt controller. One short-lived process per CLI/CGI operation;
- * uhttpd owns TLS and connection limits, knockd owns packet capture.
+ * Native OpenWrt controller. Local administrative CLI and authenticated knock callbacks.
+ * No HTTP listener or TLS stack; knockd owns packet capture.
  * Wire format and the schema-2 database are shared with controller/server.py.
  */
 #define _GNU_SOURCE
@@ -13,9 +13,8 @@
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
-#include <openssl/pem.h>
+#include <netdb.h>
 #include <openssl/rand.h>
-#include <openssl/x509.h>
 #include <qrencode.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -39,12 +38,11 @@ typedef struct json_object J;
 static jmp_buf main_failure;
 static jmp_buf *failure = &main_failure;
 static char error_text[256];
-static int http_status = 400;
 #ifndef KNC_STATE_DIR
 #define KNC_STATE_DIR "/etc/knock-control"
 #endif
 static char directory[1024] = KNC_STATE_DIR;
-static char config_path[1100], daemon_path[1100], cert_path[1100], key_path[1100],
+static char config_path[1100], daemon_path[1100],
     replay_path[1100], rules_path[1100], legacy_path[1100];
 static const char *daemon_bin = "/usr/sbin/knock-control-daemon";
 static const char *control_bin = "/usr/sbin/knock-control";
@@ -218,8 +216,6 @@ static void paths(void) {
         snprintf(config_path, sizeof(config_path), "%s/knock-control", directory);
     snprintf(legacy_path, sizeof(legacy_path), "%s/settings.json", directory);
     snprintf(daemon_path, sizeof(daemon_path), "%s/knockd.conf", directory);
-    snprintf(cert_path, sizeof(cert_path), "%s/server.crt", directory);
-    snprintf(key_path, sizeof(key_path), "%s/server.key", directory);
     snprintf(replay_path, sizeof(replay_path), "%s/api-replays.sqlite3", directory);
     snprintf(rules_path, sizeof(rules_path), "%s/firewall.nft", directory);
 }
@@ -276,9 +272,7 @@ static int run(char *const argv[], const char *input, char **output) {
     fclose(out);
     return WIFEXITED(status) ? WEXITSTATUS(status) : 128;
 }
-static void checked(char *const argv[], const char *input) {
-    need(run(argv, input, NULL) == 0, "Server command failed");
-}
+
 static int service(const char *name, const char *operation) {
     if (!strcmp(name, "knock-control") && !strcmp(operation, "reload")) {
         char *args[] = {"/bin/ubus",
@@ -308,14 +302,7 @@ static void valid_id(const char *id) {
         need((id[i] >= '0' && id[i] <= '9') || (id[i] >= 'a' && id[i] <= 'f'),
              "Invalid profile ID");
 }
-static bool is_hex(const char *s, size_t n) {
-    if (strlen(s) != n)
-        return false;
-    for (size_t i = 0; i < n; i++)
-        if (!((s[i] >= '0' && s[i] <= '9') || (s[i] >= 'a' && s[i] <= 'f')))
-            return false;
-    return true;
-}
+
 static bool ipv4(const char *s) {
     struct in_addr a;
     char canonical[INET_ADDRSTRLEN];
@@ -543,17 +530,16 @@ static J *config_for(J *db, J *profile) {
 static void validate_database(J *db) {
     need(iget(db, "schema", 2, 2) == 2, "Initialize a schema-2 database");
     valid_interface(sget(db, "interface"));
-    need(ipv4(sget(db, "api_bind")), "Invalid API bind address");
-    iget(db, "api_port", 1, 65535);
+    valid_host(sget(db, "knock_host"));
+    const char *obsolete[] = {"api_bind", "api_port", "server_url", "certificate_sha256", NULL};
+    for (int i=0; obsolete[i]; i++) json_object_object_del(db, obsolete[i]);
     bget(db, "activated");
     J *protected = get(db, "protected_ports");
     need(json_object_is_type(protected, json_type_array) &&
              json_object_array_length(protected) <= 16384,
          "Invalid protected ports");
     for (size_t i = 0; i < json_object_array_length(protected); i++)
-        need(integer(json_object_array_get_idx(protected, i), 1, 65535) !=
-                 iget(db, "api_port", 1, 65535),
-             "API port cannot be protected");
+        integer(json_object_array_get_idx(protected, i), 1, 65535);
     J *p = get(db, "profiles");
     need(json_object_is_type(p, json_type_object) && json_object_object_length(p) <= 128,
          "Invalid profile database");
@@ -571,9 +557,6 @@ static void validate_database(J *db) {
                 for (size_t i = 0; i < json_object_array_length(ps); i++) {
                     int lo, hi;
                     rule_bounds(str(json_object_array_get_idx(ps, i)), &lo, &hi);
-                    int api = iget(db, "api_port", 1, 65535);
-                    need(strcmp(sget(r, "protocol"), "tcp") || api < lo || api > hi,
-                         "Rule overlaps API port");
                     json_object_object_foreach(p, id, profile) {
                         (void)id;
                         int base = iget(get(profile, "settings"), "base", 1024, 65280);
@@ -646,15 +629,13 @@ static void validate_database(J *db) {
             json_object_put(permitted);
         } else
             need(!get(policy, "allowed_rules"), "Rule policy requires rules list");
-        int api_port = iget(db, "api_port", 1, 65535);
-        need(!has_port(allowed, api_port), "API port cannot be protected");
         int maximum = iget(policy, "max_idle_timeout", 10, 86400);
         J *cfg = get(profile, "settings"), *initial = get(cfg, "ports");
         need(iget(cfg, "idle_timeout", 10, 86400) <= maximum, "Idle timeout outside policy");
         for (size_t i = 0; i < json_object_array_length(initial); i++)
             need(has_port(allowed, integer(json_object_array_get_idx(initial, i), 1, 65535)),
                  "Protected port outside policy");
-        bget(policy, "can_configure");
+        json_object_object_del(policy, "can_configure");
         if (get(policy, "allow_browser_transport"))
             bget(policy, "allow_browser_transport");
         else
@@ -721,12 +702,10 @@ static J *decode_config(const char *raw, bool require_initialized) {
     }
     J *db = obj(), *profiles = obj();
     put(db, "profiles", profiles);
-    const char *const texts[] = {"interface",  "api_bind",           "server_url",
-                                 "knock_host", "certificate_sha256", NULL};
+    const char *const texts[] = {"interface", "knock_host", NULL};
     for (int i = 0; texts[i]; i++)
         text(db, texts[i], uci_string(ctx, main, texts[i]));
     put(db, "schema", uci_number(uci_string(ctx, main, "schema")));
-    put(db, "api_port", uci_number(uci_string(ctx, main, "api_port")));
     put(db, "activated", uci_bool(uci_string(ctx, main, "activated")));
     put(db, "protected_ports", uci_list_value(ctx, main, "protected_ports", true));
     struct uci_element *e;
@@ -773,7 +752,6 @@ static J *decode_config(const char *raw, bool require_initialized) {
         put(cfg, "protocols", uci_list_value(ctx, s, "protocols", false));
         put(policy, "allowed_ports", uci_list_value(ctx, s, "allowed_ports", true));
         put(policy, "max_idle_timeout", uci_number(uci_string(ctx, s, "max_idle_timeout")));
-        put(policy, "can_configure", uci_bool(uci_string(ctx, s, "can_configure")));
         put(policy, "allow_browser_transport",
             uci_bool(uci_string(ctx, s, "allow_browser_transport")));
         put(p, "settings", cfg);
@@ -933,31 +911,8 @@ static char *new_secret(void) {
     }
     return s;
 }
-static void secret_key(const char *s, unsigned char out[20]) {
-    unsigned int acc = 0, bits = 0;
-    int j = 0;
-    need(strlen(s) == 32, "Invalid key");
-    for (int i = 0; i < 32; i++) {
-        int v = s[i] >= 'A' && s[i] <= 'Z'   ? s[i] - 'A'
-                : s[i] >= '2' && s[i] <= '7' ? s[i] - '2' + 26
-                                             : -1;
-        need(v >= 0, "Invalid key");
-        acc = (acc << 5) | (unsigned int)v;
-        bits += 5;
-        if (bits >= 8) {
-            bits -= 8;
-            out[j++] = (acc >> bits) & 255;
-        }
-    }
-}
-static void mac(const EVP_MD *md, const char *secret, const void *data, size_t n,
-                unsigned char *out) {
-    unsigned char key[20];
-    secret_key(secret, key);
-    unsigned int len;
-    need(HMAC(md, key, 20, data, n, out, &len) != NULL, "HMAC failed");
-    OPENSSL_cleanse(key, sizeof(key));
-}
+
+
 static char *tag(J *p) {
     char *s = fmt("%s:%lld", sget(p, "secret"), (long long)iget(p, "revision", 1, 2147483647));
     char *h = sha256hex(s, strlen(s));
@@ -965,21 +920,8 @@ static char *tag(J *p) {
     h[16] = 0;
     return h;
 }
-static void counter_bytes(uint64_t step, unsigned char out[8]) {
-    for (int i = 7; i >= 0; i--) {
-        out[i] = step & 255;
-        step >>= 8;
-    }
-}
-static void totp(const char *secret, uint64_t step, char out[7]) {
-    unsigned char c[8], d[20];
-    counter_bytes(step, c);
-    mac(EVP_sha1(), secret, c, 8, d);
-    unsigned int o = d[19] & 15;
-    uint32_t v = ((uint32_t)(d[o] & 127) << 24) | ((uint32_t)d[o + 1] << 16) |
-                 ((uint32_t)d[o + 2] << 8) | d[o + 3];
-    snprintf(out, 7, "%06u", v % 1000000);
-}
+
+
 static char *render(J *db) {
     char *buffer = NULL;
     size_t size = 0;
@@ -1172,9 +1114,6 @@ static void named_rule_lines(FILE *f, J *db, int chain, const char *prefix) {
 static void rule_lines(FILE *f, J *db, bool outgoing, const char *prefix) {
     if (!bget(db, "activated"))
         return;
-    if (!outgoing)
-        fprintf(f, "%smeta nfproto ipv4 tcp dport %lld accept\n", prefix,
-                (long long)iget(db, "api_port", 1, 65535));
     json_object_object_foreach(get(db, "profiles"), id, p) {
         if (bget(p, "revoked") || !bget(p, "enabled"))
             continue;
@@ -1353,28 +1292,7 @@ static void publish(J *db, J *changed, bool start) {
     free(old);
     free(old_daemon);
 }
-static J *own_status(J *db, const char *id) {
-    J *p = get(get(db, "profiles"), id);
-    need(p != NULL, "Unknown profile");
-    J *r = obj();
-    boolean(r, "ok", true);
-    text(r, "profile_id", id);
-    text(r, "name", sget(p, "name"));
-    boolean(r, "enabled", bget(p, "enabled"));
-    put(r, "revision", copy(get(p, "revision")));
-    boolean(r, "daemon_running", active());
-    J *cfg = config_for(db, p);
-    put(r, "settings", public_settings(cfg));
-    json_object_put(cfg);
-    put(r, "policy", copy(get(p, "policy")));
-    J *definitions = obj(), *names = get(get(p, "policy"), "allowed_rules");
-    for (size_t i = 0; names && i < json_object_array_length(names); i++) {
-        const char *name = str(json_object_array_get_idx(names, i));
-        put(definitions, name, copy(get(get(db, "rules"), name)));
-    }
-    put(r, "rules", definitions);
-    return r;
-}
+
 static void access_profile(J *db, const char *action, const char *id, const char *credential,
                            const char *ip) {
     valid_id(id);
@@ -1477,9 +1395,7 @@ static void reserve_nonce_order(const char *id, const char *nonce, time_t now, c
         sqlite3_close(db);
     need(ok, "Authentication failed or replay capacity exceeded");
 }
-static void reserve_nonce(const char *id, const char *nonce, time_t now) {
-    reserve_nonce_order(id, nonce, now, NULL, NULL, 0);
-}
+
 static void access_ice(J *db, const char *id, const char *credential, const char *ip,
                        const char *token) {
     valid_id(id);
@@ -1512,174 +1428,33 @@ static void access_ice(J *db, const char *id, const char *credential, const char
     free(door);
     free(scope);
 }
-static const char *authenticate(J *db, const char *header, const char *body, size_t n) {
-    http_status = 401;
-    need(header && strlen(header) < 200 && !strncmp(header, "Knock ", 6), "Authentication failed");
-    char *value = strdup(header + 6);
-    need(value != NULL, "Out of memory");
-    char *p = value, *id = strsep(&p, ":"), *stamp = strsep(&p, ":"), *nonce = strsep(&p, ":"),
-         *signature = strsep(&p, ":");
-    need(id && stamp && nonce && signature && !p && is_hex(id, 24) && is_hex(nonce, 32) &&
-             is_hex(signature, 64),
-         "Authentication failed");
-    size_t len = strlen(stamp);
-    need(len >= 1 && len <= 12, "Authentication failed");
-    for (size_t i = 0; i < len; i++)
-        need(isdigit((unsigned char)stamp[i]), "Authentication failed");
-    time_t now = time(NULL);
-    need(llabs((long long)now - strtoll(stamp, NULL, 10)) <= 60, "Authentication failed");
-    J *profile = get(get(db, "profiles"), id);
-    need(profile && !bget(profile, "revoked"), "Authentication failed");
-    char *body_hash = sha256hex(body, n),
-         *message = fmt("knock-control:api:v2:POST:/v1/control:%s:%s:%s", stamp, nonce, body_hash);
-    unsigned char d[32];
-    mac(EVP_sha256(), sget(profile, "secret"), message, strlen(message), d);
-    char *expected = hex(d, 32);
-    need(CRYPTO_memcmp(signature, expected, 64) == 0, "Authentication failed");
-    reserve_nonce(id, nonce, now);
-    http_status = 400;
-    free(message);
-    free(expected);
-    free(body_hash);
-    return id;
-}
-static char *verify_browser_proof(J *db, J *profile, J *request, const char *source) {
-    J *policy = get(profile, "policy");
-    need(!get(policy, "allow_browser_transport") || bget(policy, "allow_browser_transport"),
-         "Browser transport disabled");
-    need(bget(profile, "enabled") && bget(db, "activated"), "Profile or server inactive");
-    need(ipv4(source), "Invalid IPv4 address");
-    const char *encoded = sget(request, "confirmation");
-    need(strlen(encoded) == 80, "Invalid confirmation");
-    for (int i = 0; i < 80; i++)
-        need(isalnum((unsigned char)encoded[i]) || encoded[i] == '+' || encoded[i] == '/',
-             "Invalid confirmation");
-    unsigned char proof[61];
-    need(EVP_DecodeBlock(proof, (const unsigned char *)encoded, 80) == 60 &&
-             !memcmp(proof, "KNC1", 4),
-         "Invalid confirmation");
-    uint64_t step = 0;
-    for (int i = 4; i < 12; i++)
-        step = (step << 8) | proof[i];
-    uint64_t now = (uint64_t)time(NULL) / 30;
-    need(step <= now + 1 && step + 1 >= now, "Expired confirmation");
-    J *cfg = config_for(db, profile);
-    const char *id = sget(profile, "id"), *action = sget(request, "action") + 8,
-               *ip = bget(cfg, "ip_protection") ? source : "-";
-    char *door = fmt("%s.%s:%s", id, action, ip);
-    size_t door_len = strlen(door), prefix_len = strlen("knock-control:confirm:v1:");
-    unsigned char message[512], expected[32];
-    need(prefix_len + 24 + door_len <= sizeof(message), "Confirmation too large");
-    memcpy(message, "knock-control:confirm:v1:", prefix_len);
-    memcpy(message + prefix_len, proof + 4, 24);
-    memcpy(message + prefix_len + 24, door, door_len);
-    mac(EVP_sha256(), sget(profile, "secret"), message, prefix_len + 24 + door_len, expected);
-    need(CRYPTO_memcmp(expected, proof + 28, 32) == 0, "Invalid confirmation");
-    char code[7];
-    totp(sget(profile, "secret"), step, code);
-    char *mapped = fmt("knock-control:v1:%s:%s", door, code);
-    digest(EVP_sha256(), mapped, strlen(mapped), expected);
-    J *sequence = get(request, "sequence"), *protocols = get(cfg, "protocols");
-    need(json_object_is_type(sequence, json_type_array) &&
-             json_object_array_length(sequence) == json_object_array_length(protocols),
-         "Incomplete knock sequence");
-    for (size_t i = 0; i < json_object_array_length(protocols); i++) {
-        J *pair = json_object_array_get_idx(sequence, i);
-        need(json_object_is_type(pair, json_type_array) && json_object_array_length(pair) == 2,
-             "Incomplete knock sequence");
-        need(integer(json_object_array_get_idx(pair, 0), 1, 65535) ==
-                     iget(cfg, "base", 1024, 65280) + expected[i] &&
-                 !strcmp(str(json_object_array_get_idx(pair, 1)),
-                         str(json_object_array_get_idx(protocols, i))),
-             "Incomplete knock sequence");
-    }
-    char *nonce = hex(proof + 12, 16);
-    free(door);
-    free(mapped);
-    json_object_put(cfg);
-    return nonce;
-}
-static void browser_access(J *db, J *profile, J *request, const char *source) {
-    char *nonce = verify_browser_proof(db, profile, request, source);
-    const char *id = sget(profile, "id");
-    char *scope = fmt("confirm:%s", id), *credential = tag(profile),
-         *operation = fmt("access-%s", sget(request, "action") + 8);
-    reserve_nonce(scope, nonce, time(NULL));
-    access_profile(db, operation, id, credential, source);
-    free(nonce);
-    free(scope);
-    free(credential);
-    free(operation);
-}
+
+
+
 static bool allowed_key(const char *key, const char *const *keys) {
     for (; *keys; keys++)
         if (!strcmp(key, *keys))
             return true;
     return false;
 }
-static J *dispatch(J *db, J *request, const char *id, const char *source) {
-    static const char *const fields[] = {"action",   "settings",     "revision",
-                                         "sequence", "confirmation", NULL};
-    need(json_object_is_type(request, json_type_object), "Expected request object");
-    json_object_object_foreach(request, key, value) {
-        (void)value;
-        need(allowed_key(key, fields), "Only authenticated profile operations are allowed");
-    }
-    J *profile = get(get(db, "profiles"), id);
-    need(profile && !bget(profile, "revoked"), "Credential revoked or unknown");
-    const char *action = sget(request, "action");
-    if (!strcmp(action, "status"))
-        return own_status(db, id);
-    if (!strcmp(action, "browser-open") || !strcmp(action, "browser-close")) {
-        browser_access(db, profile, request, source);
-        J *r = own_status(db, id);
-        text(r, "message", !strcmp(action, "browser-open") ? "Access enabled" : "Access disabled");
-        return r;
-    }
-    need(!strcmp(action, "configure"), "Unknown action");
-    need(iget(request, "revision", 1, 2147483647) == iget(profile, "revision", 1, 2147483646),
-         "Profile changed; refresh status");
-    J *policy = get(profile, "policy");
-    need(bget(policy, "can_configure"), "Settings changes disabled");
-    J *patch = get(request, "settings"), *candidate = copy(profile);
-    need(json_object_is_type(patch, json_type_object), "Expected settings object");
-    static const char *const editable[] = {
-        "ports", "rules", "idle_timeout", "protocols", "seq_timeout", "ip_protection", NULL};
-    json_object_object_foreach(patch, k, v) {
-        need(allowed_key(k, editable), "Setting is not editable");
-        put(get(candidate, "settings"), k, copy(v));
-    }
-    J *cfg = config_for(db, candidate), *ps = get(cfg, "ports"),
-      *allowed = get(policy, "allowed_ports");
-    for (size_t i = 0; i < json_object_array_length(ps); i++)
-        need(has_port(allowed, integer(json_object_array_get_idx(ps, i), 1, 65535)),
-             "Port outside profile policy");
-    J *chosen = get(cfg, "rules"), *permitted = get(policy, "allowed_rules");
-    for (size_t i = 0; chosen && i < json_object_array_length(chosen); i++)
-        need(has_string(permitted, str(json_object_array_get_idx(chosen, i))),
-             "Rule outside profile policy");
-    need(iget(cfg, "idle_timeout", 10, 86400) <= iget(policy, "max_idle_timeout", 10, 86400),
-         "Idle timeout outside profile policy");
-    J *published = public_settings(cfg);
-    json_object_object_del(published, "interface");
-    json_object_object_del(published, "profile_id");
-    put(profile, "settings", published);
-    number(profile, "revision", iget(profile, "revision", 1, 2147483646) + 1);
-    J *changed = arr();
-    append(changed, json_object_new_string(id));
-    publish(db, changed, false);
-    return own_status(db, id);
-}
+
 static J *bundle(J *db, const char *id) {
     valid_id(id);
     J *p = get(get(db, "profiles"), id);
     need(p && !bget(p, "revoked"), "Unknown or revoked profile");
     J *r = obj();
-    text(r, "format", "knock-control-client-v2");
+    text(r, "format", "knock-control-client-v3");
     text(r, "profile_id", id);
     text(r, "name", sget(p, "name"));
-    text(r, "server_url", sget(db, "server_url"));
-    text(r, "server_certificate_sha256", sget(db, "certificate_sha256"));
+    const char *host=sget(db, "knock_host");
+    if (ipv4(host)) text(r, "ice_host", host);
+    else {
+        struct addrinfo hints={.ai_family=AF_INET,.ai_socktype=SOCK_DGRAM}, *result=NULL;
+        need(getaddrinfo(host,NULL,&hints,&result)==0 && result, "Cannot resolve knock server IPv4");
+        char address[INET_ADDRSTRLEN];
+        need(inet_ntop(AF_INET,&((struct sockaddr_in*)result->ai_addr)->sin_addr,address,sizeof(address))!=NULL, "Invalid resolved IPv4");
+        text(r, "ice_host", address);freeaddrinfo(result);
+    }
     text(r, "knock_host", sget(db, "knock_host"));
     number(r, "ice_version", 1);
     text(r, "secret", sget(p, "secret"));
@@ -1706,11 +1481,11 @@ static char *base64url(const char *s) {
 }
 static char *enrollment(J *b) {
     J *c = obj(), *cfg = get(b, "settings"), *s = arr();
-    number(c, "v", 2);
+    number(c, "v", 3);
     if (get(b, "ice_version"))
         put(c, "w", copy(get(b, "ice_version")));
-    text(c, "u", sget(b, "server_url"));
-    text(c, "f", sget(b, "server_certificate_sha256"));
+    const char *optional[]={"ice_host","ice_source","stun_server",NULL};
+    for (int i=0;optional[i];i++) if(get(b,optional[i]))put(c,optional[i],copy(get(b,optional[i])));
     text(c, "i", sget(b, "profile_id"));
     text(c, "n", sget(b, "name"));
     text(c, "k", sget(b, "secret"));
@@ -1730,7 +1505,7 @@ static char *enrollment(J *b) {
         append(s, copy(get(cfg, "rules")));
     put(c, "s", s);
     char *encoded = base64url(json(c)),
-         *url = fmt("%s/app/#import=kc2_%s", sget(b, "server_url"), encoded);
+         *url = fmt("knock-control://import/#import=kc3_%s", encoded);
     free(encoded);
     json_object_put(c);
     return url;
@@ -1826,106 +1601,11 @@ static void qr_output(J *b, const char *path, bool terminal) {
     }
     QRcode_free(qr);
 }
-static char *certificate_fingerprint(const char *cert, const char *key) {
-    FILE *f = fopen(cert, "r");
-    need(f != NULL, "Cannot read TLS certificate");
-    X509 *x = PEM_read_X509(f, NULL, NULL, NULL);
-    fclose(f);
-    need(x != NULL, "Invalid TLS certificate");
-    f = fopen(key, "r");
-    need(f != NULL, "Cannot read TLS key");
-    EVP_PKEY *k = PEM_read_PrivateKey(f, NULL, NULL, NULL);
-    fclose(f);
-    need(k && X509_check_private_key(x, k) == 1, "TLS certificate and key do not match");
-    unsigned char d[32];
-    unsigned int n;
-    need(X509_digest(x, EVP_sha256(), d, &n) == 1 && n == 32, "Certificate fingerprint failed");
-    X509_free(x);
-    EVP_PKEY_free(k);
-    return hex(d, 32);
-}
-static void serve(J *db) {
-    char *address = fmt("%s:%lld", sget(db, "api_bind"), (long long)iget(db, "api_port", 1, 65535));
-    /* The dedicated docroot contains only the CGI trampoline. Missing URLs
-     * go to that trampoline, which serves an exact static whitelist and API.
-     * This preserves CSP/security headers without adding a uhttpd module. */
-    char *a[] = {"/usr/sbin/uhttpd",
-                 "-f",
-                 "-s",
-                 address,
-                 "-C",
-                 cert_path,
-                 "-K",
-                 key_path,
-                 "-h",
-                 "/usr/share/knock-control/http",
-                 "-x",
-                 "/cgi-bin",
-                 "-E",
-                 "/cgi-bin/control",
-                 "-D",
-                 "-S",
-                 "-n",
-                 "8",
-                 "-N",
-                 "32",
-                 "-t",
-                 "30",
-                 "-T",
-                 "5",
-                 "-k",
-                 "0",
-                 NULL};
-    execv(a[0], a);
-    fail("Cannot start dedicated uhttpd instance");
-}
-static void reply(int code, J *value) {
-    const char *s = json(value);
-    printf("Status: %d %s\r\nContent-Type: application/json; charset=utf-8\r\nCache-Control: "
-           "no-store\r\nX-Content-Type-Options: nosniff\r\nContent-Length: %zu\r\nConnection: "
-           "close\r\n\r\n%s",
-           code, code == 200 ? "OK" : "Error", strlen(s), s);
-}
-static const char *env(const char *name) {
-    const char *v = getenv(name);
-    return v ? v : "";
-}
-static bool rate_allowed(const char *ip) {
-    /* Shared tmpfs buckets survive CGI exits, bounded by 4096 active peers.
-     * They never write traffic counters to the router's flash. */
-    need(mkdir("/var/run/knock-control", 0700) == 0 || errno == EEXIST,
-         "Cannot create runtime directory");
-    const char *path = "/var/run/knock-control/rates.json";
-    J *rates = obj();
-    if (exists(path)) {
-        size_t n;
-        char *data = read_file(path, 1024 * 1024, &n);
-        json_object_put(rates);
-        rates = parse(data, n);
-        free(data);
-    }
-    int64_t bucket = time(NULL) / 60;
-    J *fresh = obj();
-    json_object_object_foreach(rates, k, v) {
-        if (json_object_is_type(v, json_type_array) && json_object_array_length(v) == 2 &&
-            integer(json_object_array_get_idx(v, 0), 0, INT64_MAX) == bucket)
-            put(fresh, k, copy(v));
-    }
-    J *old = get(fresh, ip);
-    if (!old && json_object_object_length(fresh) >= 4096)
-        return false;
-    int count = old ? (int)integer(json_object_array_get_idx(old, 1), 0, INT32_MAX) : 0;
-    if (count >= 120)
-        return false;
-    J *entry = arr();
-    append(entry, json_object_new_int64(bucket));
-    append(entry, json_object_new_int(count + 1));
-    put(fresh, ip, entry);
-    atomic(path, json(fresh));
-    json_object_put(rates);
-    json_object_put(fresh);
-    return true;
-}
+
+
+
+
+
 static void lock_controller(void) {
     static int held = -1;
     if (held >= 0)
@@ -1934,104 +1614,7 @@ static void lock_controller(void) {
     need(fd >= 0 && flock(fd, LOCK_EX) == 0, "Cannot lock controller");
     held = fd;
 }
-static void http(void) {
-    struct rlimit memory = {64 * 1024 * 1024, 64 * 1024 * 1024};
-    setrlimit(RLIMIT_AS, &memory);
-    http_status = 400;
-    const char *uri = env("REQUEST_URI"), *method = env("REQUEST_METHOD"),
-               *source = env("REMOTE_ADDR");
-    need(!strcmp(env("HTTPS"), "on"), "HTTPS required");
-    need(ipv4(source), "IPv4 required");
-    int rate_lock =
-        open("/var/lock/knock-control-rate.lock", O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0600);
-    need(rate_lock >= 0 && flock(rate_lock, LOCK_EX) == 0, "Cannot lock rate limiter");
-    http_status = 429;
-    need(rate_allowed(source), "Request limit exceeded");
-    close(rate_lock);
-    http_status = 400;
-    if (!strcmp(method, "GET") || !strcmp(method, "HEAD")) {
-        static const char *const files[] = {"app.html",
-                                            "app.webmanifest",
-                                            "style.css",
-                                            "icon.svg",
-                                            "app.js",
-                                            "bridge.js",
-                                            "browser-client.js",
-                                            "ice-client.js",
-                                            "profile-codec.js",
-                                            "transport-config.js",
-                                            "qr.js",
-                                            "i18n.js",
-                                            "ice-operation.js",
-                                            "sw.js",
-                                            "vendor/jsQR.js",
-                                            "icon-48.png",
-                                            "_locales/en/messages.json",
-                                            "_locales/ru/messages.json",
-                                            "_locales/de/messages.json",
-                                            "_locales/fr/messages.json",
-                                            "_locales/es/messages.json",
-                                            "_locales/pt_BR/messages.json",
-                                            "_locales/zh_CN/messages.json",
-                                            "_locales/ja/messages.json",
-                                            "_locales/ar/messages.json",
-                                            "_locales/hi/messages.json",
-                                            "icon-180.png",
-                                            "icon-192.png",
-                                            "icon-512.png",
-                                            NULL};
-        const char *file = !strcmp(uri, "/app/")       ? "app.html"
-                           : !strncmp(uri, "/app/", 5) ? uri + 5
-                                                       : "";
-        http_status = 404;
-        need(allowed_key(file, files), "Unknown endpoint");
-        size_t n;
-        char *path = fmt("/usr/share/knock-control/app/%s", file),
-             *data = read_file(path, 1024 * 1024, &n);
-        const char *ext = strrchr(file, '.'),
-                   *type = !strcmp(ext, ".html")  ? "text/html; charset=utf-8"
-                           : !strcmp(ext, ".js")  ? "text/javascript; charset=utf-8"
-                           : !strcmp(ext, ".css") ? "text/css; charset=utf-8"
-                           : !strcmp(ext, ".png") ? "image/png"
-                           : !strcmp(ext, ".svg") ? "image/svg+xml"
-                           : !strcmp(ext, ".json") ? "application/json; charset=utf-8"
-                                                  : "application/manifest+json";
-        printf("Status: 200 OK\r\nContent-Type: %s\r\nContent-Length: %zu\r\nCache-Control: "
-               "no-cache\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: "
-               "no-referrer\r\nContent-Security-Policy: default-src 'self'; script-src 'self'; "
-               "connect-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; object-src "
-               "'none'; base-uri 'none'; frame-ancestors 'none'\r\nPermissions-Policy: "
-               "camera=(self), microphone=(), geolocation=()\r\nConnection: close\r\n\r\n",
-               type, n);
-        if (!strcmp(method, "GET"))
-            fwrite(data, 1, n, stdout);
-        free(path);
-        free(data);
-        return;
-    }
-    http_status = 404;
-    need(!strcmp(uri, "/v1/control"), "Unknown endpoint");
-    http_status = 405;
-    need(!strcmp(method, "POST"), "POST required");
-    http_status = 400;
-    const char *length = env("CONTENT_LENGTH");
-    need(*length && strlen(length) <= 5, "Content-Length required");
-    for (const char *p = length; *p; p++)
-        need(isdigit((unsigned char)*p), "Invalid Content-Length");
-    long n = strtol(length, NULL, 10);
-    http_status = 413;
-    need(n >= 1 && n <= 65536, "Request too large");
-    http_status = 400;
-    char *body = alloc((size_t)n + 1);
-    need(fread(body, 1, (size_t)n, stdin) == (size_t)n, "Incomplete request body");
-    lock_controller();
-    J *db = load();
-    const char *id = authenticate(db, env("HTTP_AUTHORIZATION"), body, (size_t)n);
-    J *request = parse(body, (size_t)n), *response = dispatch(db, request, id, source);
-    boolean(response, "access_active", contains(id, source));
-    text(response, "observed_ip", source);
-    reply(200, response);
-}
+
 static J *parse_ports(const char *s) {
     J *a = arr();
     char *value = strdup(s), *p = value, *part;
@@ -2104,21 +1687,10 @@ struct cli_help_entry {
     bool internal;
 };
 static const struct cli_help_entry cli_commands[] = {
-    {"init", "Initialize the server and generate TLS files",
-     "init --public-host HOST [--interface DEVICE] [--api-port PORT] [--bind IPV4]",
-     "Required:\n  --public-host HOST  Public DNS name or IPv4 reachable by clients.\n"
-     "Options:\n  --interface DEVICE  Incoming knock interface (default: eth0).\n"
-     "  --api-port PORT     HTTPS control port (default: 8443).\n"
-     "  --bind IPV4         Listen address (default: 0.0.0.0).\n\n"
-     "Example (replace HOST and DEVICE with your values):\n"
-     "  knock-control init --public-host router.example.com --interface WAN_DEVICE --api-port "
-     "8443\n\n"
-     "Find the WAN interface:\n  ubus call network.interface.wan status\n\n"
-     "Initialization writes /etc/config/knock-control and generates a self-signed\n"
-     "certificate. For browser access, install a browser-trusted certificate with\n"
-     "'knock-control tls'. Then issue a client profile and run 'knock-control activate'.\n"
-     "Initialization alone does not activate protected ports.",
-     false},
+    {"init", "Initialize a knock-only server", "init --public-host HOST [--interface DEVICE]",
+     "Use the public IPv4 clients must knock and the incoming interface.\n"
+     "Example: knock-control init --public-host 203.0.113.10 --interface eth1\n"
+     "Then issue profiles and activate protection. No management listener is started.",false},
     {"issue", "Generate a client secret and export its profile",
      "issue --name NAME [--ports PORTS] [--rules RULES] --out FILE [OPTIONS]",
      "Required: --name NAME, --out FILE, and --ports or --rules\n"
@@ -2129,7 +1701,6 @@ static const struct cli_help_entry cli_commands[] = {
      "  --allowed-rules NAMES    Rule selection policy (default: --rules).\n"
      "  --idle-timeout SECONDS   Traffic idle timeout (default: 600).\n"
      "  --max-idle-timeout SEC   Policy limit (default: 3600).\n"
-     "  --fixed-settings        Disable client settings changes.\n"
      "  --native-only           Disable browser ON/OFF transport.\n"
      "  --qr-out FILE.png/.svg  Also export an offline enrollment QR.\n\n"
      "Example:\n  knock-control issue --name Phone --ports 2222 --out /root/phone.json --qr-out "
@@ -2139,8 +1710,6 @@ static const struct cli_help_entry cli_commands[] = {
     {"qr", "Create an enrollment QR for an existing profile",
      "qr PROFILE_ID [--out FILE.png/.svg] [--terminal]", "Choose --out, --terminal, or both.",
      false},
-    {"tls", "Install a matching TLS certificate and private key", "tls --cert FILE --key FILE",
-     "Example:\n  knock-control tls --cert /path/fullchain.pem --key /path/privkey.pem", false},
     {"activate", "Start control services and activate port protection", "activate", NULL, false},
     {"list", "List profiles without revealing their secrets", "list", NULL, false},
     {"rules", "List named server firewall rules", "rules", NULL, false},
@@ -2160,7 +1729,6 @@ static const struct cli_help_entry cli_commands[] = {
      false},
     {"firewall", "Regenerate and apply Knock Control firewall rules", "firewall", NULL, false},
     {"migrate", "Migrate the legacy JSON configuration to UCI", "migrate", NULL, false},
-    {"serve", "Run the dedicated HTTPS server in the foreground", "serve", NULL, true},
     {"configured", "Check whether the server is initialized", "configured", NULL, true},
     {"activated", "Check whether protection is activated", "activated", NULL, true},
     {"generate-config", "Regenerate the daemon configuration", "generate-config", NULL, true},
@@ -2219,12 +1787,12 @@ static bool cli_help(int argc, char **argv) {
 static void validate_cli(const char *action, J *o, J *pos) {
     static const char *const none
         [] = {NULL},
-    *const init_opts[] = {"public-host", "interface", "api-port", "bind", NULL},
+    *const init_opts[] = {"public-host", "interface", NULL},
     *const issue_opts[] = {"name",          "rules",        "allowed-rules",    "ports",
-                           "allowed-ports", "idle-timeout", "max-idle-timeout", "fixed-settings",
+                           "allowed-ports", "idle-timeout", "max-idle-timeout",
                            "out",           "qr-out",       "native-only",      NULL},
     *const export_opts[] = {"out", NULL}, *const qr_opts[] = {"out", "terminal", NULL},
-    *const tls_opts[] = {"cert", "key", NULL}, *const init_required[] = {"public-host", NULL},
+    *const init_required[] = {"public-host", NULL},
     *const issue_required[] = {"name", "out", NULL}, *const rule_opts[] = {"type",      "protocol",
                                                                            "ports",     "dest-ip",
                                                                            "dest-port", "icmp-type",
@@ -2247,9 +1815,6 @@ static void validate_cli(const char *action, J *o, J *pos) {
     } else if (!strcmp(action, "qr")) {
         allowed = qr_opts;
         count = 1;
-    } else if (!strcmp(action, "tls")) {
-        allowed = tls_opts;
-        required = tls_opts;
     } else if (!strcmp(action, "revoke"))
         count = 1;
     else if (!strcmp(action, "access-ice"))
@@ -2289,44 +1854,14 @@ static void validate_cli(const char *action, J *o, J *pos) {
 }
 static J *initialize(J *o) {
     need(!configured(), "Already initialized; credentials will not be overwritten");
-    const char *host = opt(o, "public-host", ""), *interface = opt(o, "interface", "eth0"),
-               *bind = opt(o, "bind", "0.0.0.0");
-    valid_host(host);
-    valid_interface(interface);
-    need(ipv4(bind), "Invalid bind address");
-    int port = optint(o, "api-port", 8443, 1, 65535);
-    need(mkdir(directory, 0700) == 0 || errno == EEXIST, "Cannot create configuration directory");
-    need(chmod(directory, 0700) == 0, "Cannot protect configuration directory");
-    char *san = fmt("subjectAltName=%s:%s", ipv4(host) ? "IP" : "DNS", host);
-    char *a[] = {"/usr/bin/openssl", "req",    "-x509",   "-newkey", "rsa:3072",
-                 "-sha256",          "-nodes", "-keyout", key_path,  "-out",
-                 cert_path,          "-days",  "3650",    "-subj",   "/CN=Knock Control",
-                 "-addext",          san,      NULL};
-    checked(a, NULL);
-    chmod(key_path, 0600);
-    free(san);
-    J *db = obj();
-    number(db, "schema", 2);
-    boolean(db, "activated", false);
-    text(db, "interface", interface);
-    text(db, "api_bind", bind);
-    number(db, "api_port", port);
-    char *url = fmt("https://%s:%d", host, port),
-         *fingerprint = certificate_fingerprint(cert_path, key_path);
-    text(db, "server_url", url);
-    text(db, "knock_host", host);
-    text(db, "certificate_sha256", fingerprint);
-    put(db, "profiles", obj());
-    put(db, "protected_ports", arr());
-    save_config(db);
-    char *rendered = render(db);
-    atomic(daemon_path, rendered);
-    free(rendered);
-    free(url);
-    free(fingerprint);
-    J *r = success();
-    text(r, "server_url", sget(db, "server_url"));
-    return r;
+    const char *host=opt(o,"public-host",""), *interface=opt(o,"interface","eth0");
+    valid_host(host);valid_interface(interface);
+    need(mkdir(directory,0700)==0 || errno==EEXIST,"Cannot create configuration directory");
+    need(chmod(directory,0700)==0,"Cannot protect configuration directory");
+    J *db=obj();number(db,"schema",2);boolean(db,"activated",false);
+    text(db,"interface",interface);text(db,"knock_host",host);put(db,"profiles",obj());put(db,"protected_ports",arr());
+    save_config(db);char *rendered=render(db);atomic(daemon_path,rendered);free(rendered);
+    J *r=success();text(r,"knock_host",host);return r;
 }
 static char *issue(J *db, J *o) {
     J *profiles = get(db, "profiles");
@@ -2337,8 +1872,6 @@ static char *issue(J *db, J *o) {
       *allowed = get(o, "allowed-ports") || get(o, "ports")
                      ? ports(parse_ports(opt(o, "allowed-ports", opt(o, "ports", ""))), 128)
                      : arr();
-    int api = iget(db, "api_port", 1, 65535);
-    need(!has_port(allowed, api), "API port cannot be protected by a profile");
     for (size_t i = 0; i < json_object_array_length(initial); i++)
         need(has_port(allowed, integer(json_object_array_get_idx(initial, i), 1, 65535)),
              "Initial port outside policy");
@@ -2353,7 +1886,7 @@ static char *issue(J *db, J *o) {
     }
     int base = 0;
     for (int b = 20000; b < 65025; b += 256) {
-        bool used = api >= b && api <= b + 255;
+        bool used = false;
         if (get(db, "rules")) {
             json_object_object_foreach(get(db, "rules"), name, r) {
                 (void)name;
@@ -2418,7 +1951,6 @@ static char *issue(J *db, J *o) {
     put(p, "settings", pub);
     put(policy, "allowed_ports", allowed);
     number(policy, "max_idle_timeout", max_idle);
-    boolean(policy, "can_configure", !get(o, "fixed-settings"));
     boolean(policy, "allow_browser_transport", !get(o, "native-only"));
     put(p, "policy", policy);
     put(profiles, id, p);
@@ -2426,40 +1958,7 @@ static char *issue(J *db, J *o) {
     free(secret);
     return id;
 }
-static void install_tls(J *db, J *o) {
-    const char *cert = opt(o, "cert", ""), *key = opt(o, "key", "");
-    char *fingerprint = certificate_fingerprint(cert, key),
-         *new_cert = read_file(cert, 1024 * 1024, NULL), *new_key = read_file(key, 65536, NULL),
-         *old_cert = read_file(cert_path, 1024 * 1024, NULL),
-         *old_key = read_file(key_path, 65536, NULL),
-         *old_db = read_file(config_path, 1024 * 1024, NULL);
-    jmp_buf transaction;
-    jmp_buf *previous = failure;
-    failure = &transaction;
-    if (setjmp(transaction) == 0) {
-        atomic(cert_path, new_cert);
-        atomic(key_path, new_key);
-        text(db, "certificate_sha256", fingerprint);
-        save_config(db);
-        need(service("knock-control-api", "restart") == 0, "API restart failed");
-        failure = previous;
-    } else {
-        if (setjmp(transaction) == 0) {
-            atomic(cert_path, old_cert);
-            atomic(key_path, old_key);
-            atomic(config_path, old_db);
-            service("knock-control-api", "restart");
-        }
-        failure = previous;
-        fail("TLS update failed; attempted restoration of previous configuration");
-    }
-    free(fingerprint);
-    free(new_cert);
-    free(new_key);
-    free(old_cert);
-    free(old_key);
-    free(old_db);
-}
+
 static J *cli(int argc, char **argv) {
     if (cli_help(argc, argv))
         return NULL;
@@ -2476,6 +1975,8 @@ static J *cli(int argc, char **argv) {
         return initialize(o);
     }
     if (!strcmp(action, "migrate")) {
+        lock_controller();
+        if(configured())save_config(load());
         return NULL;
     }
     if (!strcmp(action, "configured")) {
@@ -2508,9 +2009,6 @@ static J *cli(int argc, char **argv) {
         }
         publish(db, changed, false);
         return success();
-    }
-    if (!strcmp(action, "serve")) {
-        serve(load());
     }
     if (!strcmp(action, "activated")) {
         need(bget(load(), "activated"), "Server not activated");
@@ -2584,11 +2082,7 @@ static J *cli(int argc, char **argv) {
         if (get(o, "terminal"))
             return NULL;
         text(r, "qr_file", sget(o, "out"));
-    } else if (!strcmp(action, "tls")) {
-        install_tls(db, o);
-        text(r, "message", "TLS updated; re-export profiles to update certificate pins");
     } else if (!strcmp(action, "activate")) {
-        need(service("knock-control-api", "start") == 0, "API start failed");
         boolean(db, "activated", true);
         J *changed = arr();
         json_object_object_foreach(get(db, "profiles"), id, p) {
@@ -2633,43 +2127,14 @@ static J *cli(int argc, char **argv) {
 }
 int main(int argc, char **argv) {
     umask(0077);
-    bool is_http = argc == 2 && !strcmp(argv[1], "http");
     if (setjmp(main_failure)) {
-        J *r = obj();
-        boolean(r, "ok", false);
-        text(r, "error",
-             is_http ? (http_status == 401   ? "Authentication failed"
-                        : http_status == 429 ? "Request limit exceeded"
-                        : http_status == 404 ? "Unknown endpoint"
-                                             : "Operation rejected or unavailable")
-                     : error_text);
-        if (is_http)
-            reply(http_status, r);
-        else
-            puts(json(r));
-        return 1;
+        J *r=obj();boolean(r,"ok",false);text(r,"error",error_text);puts(json(r));return 1;
     }
-    if (!is_http && (argc < 2 || strcmp(argv[1], "--state-dir")) && cli_help(argc - 1, argv + 1))
-        return 0;
-    need(geteuid() == 0, "Run controller as root");
-    if (argc >= 4 && !strcmp(argv[1], "--state-dir")) {
-        need(!getenv("GATEWAY_INTERFACE"), "Custom state directory is CLI-only");
-        need(argv[2][0] == '/' && strlen(argv[2]) < sizeof(directory) - 32,
-             "Use an absolute state directory");
-        strcpy(directory, argv[2]);
-        paths();
-        J *r = cli(argc - 3, argv + 3);
-        if (r)
-            puts(json(r));
-        return 0;
+    if ((argc<2 || strcmp(argv[1],"--state-dir")) && cli_help(argc-1,argv+1))return 0;
+    need(geteuid()==0,"Run controller as root");
+    if(argc>=4 && !strcmp(argv[1],"--state-dir")) {
+        need(argv[2][0]=='/' && strlen(argv[2])<sizeof(directory)-32,"Use an absolute state directory");
+        strcpy(directory,argv[2]);paths();J *r=cli(argc-3,argv+3);if(r)puts(json(r));return 0;
     }
-    paths();
-    if (is_http)
-        http();
-    else {
-        J *r = cli(argc - 1, argv + 1);
-        if (r)
-            puts(json(r));
-    }
-    return 0;
+    paths();J *r=cli(argc-1,argv+1);if(r)puts(json(r));return 0;
 }

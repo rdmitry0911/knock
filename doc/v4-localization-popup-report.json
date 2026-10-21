@@ -1,0 +1,84 @@
+{
+  "result": "PASS",
+  "locales": [
+    {
+      "locale": "en",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    },
+    {
+      "locale": "ru",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    },
+    {
+      "locale": "de",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    },
+    {
+      "locale": "fr",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    },
+    {
+      "locale": "es",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    },
+    {
+      "locale": "pt_BR",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    },
+    {
+      "locale": "zh_CN",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    },
+    {
+      "locale": "ja",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    },
+    {
+      "locale": "ar",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    },
+    {
+      "locale": "hi",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    },
+    {
+      "locale": "tr",
+      "translated": true,
+      "desktop_json": true,
+      "qr_hidden": true
+    }
+  ],
+  "popup": {
+    "manifest_default_popup": true,
+    "native_toolbar_popup_opened": true,
+    "width": 380,
+    "profile_survives_reopen": true,
+    "desktop_qr_hidden": true,
+    "profile_delete_cancel_and_fallback": true,
+    "deleted_profile_stays_deleted": true,
+    "no_settings_or_status": true
+  },
+  "notes": "Desktop Chromium engine; locale rendering and JSON import/deletion are actual browser checks. ICE lifecycle has a separate kernel firewall test.",
+  "version": "4.0.3",
+  "tested_date": "2026-10-21"
+}

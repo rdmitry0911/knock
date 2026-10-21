@@ -25,12 +25,11 @@ source=package/'src';source.mkdir()
 for directory in ('src',):
     shutil.copytree(ROOT/directory,source/directory,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
 shutil.copy2(ROOT/'COPYING',source/'COPYING')
-shutil.copytree(ROOT/'dist/web-app',source/'web-app')
 if args.prepare_only:
     print(package)
     raise SystemExit(0)
 def run(*command):subprocess.run(command,cwd=sdk,check=True)
-run('./scripts/feeds','install','libpcap','libopenssl','libjson-c','libsqlite3','libqrencode','libuci','zlib','uhttpd','libustream-mbedtls','firewall4','nftables-json','openssl-util')
+run('./scripts/feeds','install','libpcap','libopenssl','libjson-c','libsqlite3','libqrencode','libuci','zlib','firewall4','nftables-json')
 config=sdk/'.config'
 # The SDK defaults enable every package and OpenSSL engine, including kernel
 # modules that are unrelated to our binary. Select just the needed build here.
@@ -42,7 +41,7 @@ config.write_text('CONFIG_ALL=n\nCONFIG_ALL_NONSHARED=n\nCONFIG_ALL_KMODS=n\n'
                   'CONFIG_PACKAGE_libqrencode=m\nCONFIG_PACKAGE_libuci=m\nCONFIG_PACKAGE_zlib=m\n')
 run('make','defconfig')
 run('make','package/knock-control/clean','NO_DEPS=1')
-# Build link dependencies; HTTPS/firewall packages resolve from official feeds.
+# Build link dependencies; Firewall packages resolve from official feeds.
 run('make',f'-j{args.jobs}','package/feeds/base/libpcap/compile','package/feeds/base/openssl/compile',
     'package/feeds/base/libjson-c/compile','package/feeds/packages/sqlite3/compile',
     'package/feeds/packages/qrencode/compile','package/feeds/base/uci/compile','package/feeds/base/zlib/compile','V=s')

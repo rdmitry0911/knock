@@ -20,7 +20,7 @@ try {
     const page=await context.newPage();await page.goto(`chrome-extension://${id}/app.html`);
   } else {
     browser=await pw[engine].launch({headless:true});context=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:844}});
-    const page=await context.newPage();await page.goto(config.bundle.server_url+'/app/');
+    const page=await context.newPage();await page.goto('https://203.0.113.1:18443/app/');
   }
   const page=context.pages().at(-1),errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('request',q=>{if(q.url().includes('/v1/control'))apiRequests.push(q.url());});

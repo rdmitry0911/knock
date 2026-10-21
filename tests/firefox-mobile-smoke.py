@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Real Firefox event-page HTTPS extension; no Native Messaging helper.
+"""Real Firefox event-page profile management; no network permissions.
 Uses the desktop engine, not an Android device. The test copy is pregranted
 only the fixture origin; production obtains that permission on the ON click.
 """
@@ -19,9 +19,7 @@ UUID='22222222-2222-4222-8222-222222222222'
 with tempfile.TemporaryDirectory(prefix='knock-firefox-mobile-') as directory:
     home=Path(directory);env={**os.environ,'HOME':str(home)}
     extension=home/'extension';shutil.copytree(ROOT/'dist/firefox-mobile',extension)
-    manifest=json.loads((extension/'manifest.json').read_text());manifest['permissions'].append('https://127.0.0.1/*')
-    (extension/'manifest.json').write_text(json.dumps(manifest))
-    fixture=subprocess.Popen(['/usr/bin/python3',str(ROOT/'tests/api_fixture.py'),str(home/'server')],env=env,stdout=subprocess.DEVNULL)
+    fixture=subprocess.Popen(['/usr/bin/python3',str(ROOT/'tests/client_fixture.py'),str(home/'server')],env=env,stdout=subprocess.DEVNULL)
     with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
     def request(method,path,data=None):
         req=urllib.request.Request(f'http://127.0.0.1:{port}'+path,data=None if data is None else json.dumps(data).encode(),method=method,headers={'Content-Type':'application/json'})
@@ -61,14 +59,19 @@ with tempfile.TemporaryDirectory(prefix='knock-firefox-mobile-') as directory:
                 message('Profile imported')
             request('POST',base+'/url',{'url':f'moz-extension://{UUID}/app.html'})
             message('Import a server-issued JSON profile');image('alice.json')
-            click('#open');until("return document.querySelector('#state').textContent",lambda v:'Access enabled' in v)
-            click('#close');until("return document.querySelector('#state').textContent",lambda v:'Access disabled' in v)
+            assert evaluate("return document.querySelectorAll('#status,#settings-panel,#connection-panel').length")==0
             request('POST',base+'/refresh',{});message('Press ON')
-            assert evaluate("return document.querySelector('#import-panel').hidden")
             click('#add-profile');image('bob.json')
             assert evaluate("return document.querySelector('#profiles').selectedOptions[0].textContent")=='Bob'
-            click('#open');until("return document.querySelector('#state').textContent",lambda v:'Access enabled' in v)
-            print('PASS: Firefox mobile MV2 package: real background module, JSON import, HTTPS ON/OFF, persisted profiles, no native helper (desktop engine)')
+            click('#delete-profile');request('POST',base+'/alert/dismiss',{})
+            assert evaluate("return document.querySelector('#profiles').options.length")==2
+            click('#delete-profile');request('POST',base+'/alert/accept',{})
+            until("return document.querySelector('#profiles').selectedOptions[0]?.textContent",lambda v:v=='Alice')
+            request('POST',base+'/refresh',{});message('Press ON')
+            assert evaluate("return document.querySelector('#profiles').options.length")==1
+            click('#delete-profile');request('POST',base+'/alert/accept',{})
+            until("return !document.querySelector('#import-panel').hidden")
+            print('PASS: Firefox extension: import/select/delete, cancellation, fallback, empty store, persistence; no settings/status/host permissions')
         except Exception:
             print((home/'driver.log').read_text()[-4000:]);raise
         finally:

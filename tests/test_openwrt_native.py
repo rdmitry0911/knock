@@ -56,9 +56,7 @@ class NativeOpenWrt(unittest.TestCase):
     def check_compatibility(self, named):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
-            db={'schema':2,'activated':True,'interface':'lo','api_bind':'127.0.0.1',
-                'api_port':18443,'server_url':'https://example.org:18443','knock_host':'example.org',
-                'certificate_sha256':'0'*64,'protected_ports':[],'profiles':{}}
+            db={'schema':2,'activated':True,'interface':'lo','knock_host':'127.0.0.1','protected_ports':[],'profiles':{}}
             if named:
                 db['rules']={
                     'ssh_lan':{'type':'dnat','protocol':'tcp','ports':['2222'],'dest_ip':'192.168.1.10','dest_port':22},
@@ -70,16 +68,7 @@ class NativeOpenWrt(unittest.TestCase):
                 ident=server.issue(db,"Phone ' Ω spare", [23456], [23456,23457], 10, 60)
             profile=db['profiles'][ident];cfg=server.config_for(db,profile)
             ip='127.0.0.2';now=time.time();nonce=secrets.token_bytes(16)
-            def request(config):return {'action':'browser-open',
-                'sequence':[list(pair) for pair in common.sequence(config,'open',ip,now=now)],
-                'confirmation':base64.b64encode(common.confirmation(config,'open',ip,now=now,nonce=nonce)).decode()}
-            body=json.dumps(request(cfg),separators=(',',':'));stamp=str(int(now));api_nonce=secrets.token_hex(16)
-            signature=common.api_signature(profile['secret'],stamp,api_nonce,body.encode())
-            fixture={'db':db,'id':ident,'ip':ip,'body':body,
-                'ice_token':common.ice_token(server.export_bundle(db,ident),'open',ip,now=now),
-                'authorization':f'Knock {ident}:{stamp}:{api_nonce}:{signature}',
-                'request':request(cfg),'request_no_ip':request({**cfg,'ip_protection':False}),
-                'proof_nonce':nonce.hex()}
+            fixture={'db':db,'id':ident,'ip':ip,'ice_token':common.ice_token(server.export_bundle(db,ident),'open',ip,now=now)}
             (root/'fixture.json').write_text(json.dumps(fixture))
             subprocess.run([os.environ['KNOCK_NATIVE_UNIT'],directory,str(root/'fixture.json')],check=True)
             exported=json.loads((root/'profile.json').read_text())
@@ -95,9 +84,6 @@ class NativeOpenWrt(unittest.TestCase):
             self.assertEqual((root/'knock-control').stat().st_mode&0o777,0o600)
             self.assertFalse((root/'settings.json').exists())
             self.assertEqual(json.loads((root/'settings.json.pre-uci').read_text()),db)
-            # Same schema and nonce rows can be used by either implementation.
-            with sqlite3.connect(root/'api-replays.sqlite3') as connection:
-                self.assertEqual(connection.execute('SELECT profile,nonce FROM nonces WHERE profile=?',(ident,)).fetchall(),[(ident,api_nonce)])
             if named:
                 self.assertIn('ct original ip saddr @kc_'+ident,(root/'firewall.nft').read_text())
                 self.assertIn("config rule 'ssh_lan'",(root/'knock-control').read_text())

@@ -10,9 +10,9 @@ ROOT=Path(__file__).resolve().parents[1]
 
 
 def check_ice(remote,ctl,qmp_path,service_port,echo_ok):
-    # Keep management bound to loopback throughout: UDP knocking does not need it.
+    # No management service is installed; all commands use local SSH in the VM.
     issued=ctl('issue','--name','ICE WAN','--ports',service_port,'--idle-timeout','10','--out','/root/ice.json')
-    remote("uci set knock-control.main.interface='eth1' && uci set knock-control.main.api_bind='127.0.0.1' && uci commit knock-control && /etc/init.d/knock-control reload && /etc/init.d/knock-control restart")
+    remote("uci set knock-control.main.interface='eth1' && uci commit knock-control && /etc/init.d/knock-control reload && /etc/init.d/knock-control restart")
     ctl('export',issued['profile_id'],'--out','/root/ice.json');bundle=json.loads(remote('cat /root/ice.json').stdout)
     base=bundle['settings']['base'];ident=bundle['profile_id']
     assert not any(int(row.split()[1].split(':')[1],16)==base for row in remote('cat /proc/net/udp').stdout.splitlines()[1:])
@@ -54,6 +54,6 @@ def check_ice(remote,ctl,qmp_path,service_port,echo_ok):
                     process.stdin.close()
                     try:process.wait(timeout=10)
                     except subprocess.TimeoutExpired:process.terminate();process.wait(timeout=5)
-    return ['real Chromium and Firefox ICE over WAN UDP forwarding with management bound to loopback',
+    return ['real Chromium and Firefox ICE over WAN UDP forwarding without a management service',
             'installed daemon + C controller + nftables ON/OFF; no UDP listener on knock port',
             'captured ICE ON remains rejected after daemon restart by durable SQLite journal']

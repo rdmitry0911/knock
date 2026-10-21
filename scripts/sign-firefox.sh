@@ -10,13 +10,17 @@ if [ "$#" -ne 0 ]; then
 fi
 command -v web-ext >/dev/null
 python3 scripts/package-extension.py
-web-ext sign --no-config-discovery --source-dir dist/firefox-mobile --artifacts-dir dist/signed-firefox-mobile --channel unlisted
-python3 - <<'PY'
+knock_sign_source=$(mktemp -d "${TMPDIR:-/tmp}/knock-firefox-sign.XXXXXX")
+trap 'rm -rf "$knock_sign_source"' EXIT HUP INT TERM
+cp -R dist/firefox-mobile/. "$knock_sign_source/"
+web-ext sign --no-config-discovery --source-dir "$knock_sign_source" --artifacts-dir dist/signed-firefox-mobile --channel unlisted
+KNOCK_SIGN_SOURCE="$knock_sign_source" python3 - <<'PY'
 import json
+import os
 from pathlib import Path
 import shutil
 import zipfile
-manifest = json.loads(Path('dist/firefox-mobile/manifest.json').read_text())
+manifest = json.loads((Path(os.environ['KNOCK_SIGN_SOURCE']) / 'manifest.json').read_text())
 matches = []
 for path in Path('dist/signed-firefox-mobile').glob('*.xpi'):
     with zipfile.ZipFile(path) as archive:

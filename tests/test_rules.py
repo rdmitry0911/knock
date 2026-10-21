@@ -29,13 +29,7 @@ class RuleTests(unittest.TestCase):
         db,a,b=database()
         db['rules']={'ping':{'type':'input','protocol':'icmp'},'udp':{'type':'input','protocol':'udp','ports':['31000-31002']}}
         ident=server.issue(db,'Rules',[],[],rules=['ping'],allowed_rules=['ping','udp'])
-        with patch.object(server,'load',return_value=db),patch.object(server,'publish'),patch.object(server,'active',return_value=True):
-            status=server.dispatch({'action':'configure','revision':1,'settings':{'rules':['udp']}},ident)
-            self.assertEqual(status['settings']['rules'],['udp'])
-            for patch_value in ({'rules':['unknown']},{'ports':[22]},{'rules':[{'type':'dnat'}]}):
-                with self.subTest(value=patch_value),self.assertRaises(ValueError):
-                    server.dispatch({'action':'configure','revision':2,'settings':patch_value},ident)
-        for port in (db['api_port'],db['profiles'][a]['settings']['base']):
+        for port in (db['profiles'][a]['settings']['base'],):
             invalid=copy.deepcopy(db);invalid['rules']['unsafe']={'type':'input','protocol':'tcp','ports':[str(port)]}
             with self.assertRaises(ValueError):rules.validate(invalid)
 

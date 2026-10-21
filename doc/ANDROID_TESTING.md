@@ -1,7 +1,7 @@
 # Android emulator verification
 
-Verified on 2026-10-20 against release `v3.1.1`, production commit
-`41ed8853aa36aee0dbee0814315442b6ef4c8223`:
+Current knock-only client verification: release `v4.0.3`.
+The source commit and exact XPI hashes are recorded in the report.
 
 | Android 15 / API 35 / x86_64, KVM | Result |
 |---|---|
@@ -11,18 +11,18 @@ Verified on 2026-10-20 against release `v3.1.1`, production commit
 
 All three verified enrollment import/persistence, real protected-service access
 with ICE ON/OFF while HTTPS was stopped, idle expiry, replay rejection after
-daemon restart, and signed HTTPS status. Both web apps reopened from their saved
-cache with HTTPS stopped. Chrome also changed the profile configuration and used
-the new revision for ICE. Each ICE stage issued zero API requests and had no
+daemon restart, and offline local profile deletion with persistence after reopening. Both web
+apps reopened from their saved cache with static HTTPS hosting stopped. No
+control API or configuration/status UI is present. Each ICE stage issued zero API requests and had no
 listening knock UDP socket. Android browser sandboxing stayed enabled.
-See the [machine-readable report](android-emulator-test-report.json) and
+See the [machine-readable report](v4-android-report.json) and
 supplemental `knock-control-android-test-evidence.zip` on the
-[release page](https://github.com/rdmitry0911/knock/releases/tag/v3.1.1).
+[release page](https://github.com/rdmitry0911/knock/releases/tag/v4.0.3).
 
 The Android checks use a real Android AVD and Android APKs, with the native
 packet daemon, signed controller callbacks, iptables/ipset and protected HTTP
 listeners in a disposable Linux network namespace. A Unix socket controls the
-test fixture; it is separate from the application's HTTPS API. The checks stop
+test fixture; the application has no HTTPS API. The checks stop
 the HTTPS listener before ICE ON/OFF and verify access through the browser.
 
 Components:
@@ -56,15 +56,15 @@ terminal with `sudo nsenter -t PID -n bash`. All commands below run there, from
 the repository root. Wait for `adb shell getprop sys.boot_completed` to return
 `1`. Ensure Wi-Fi is connected (`adb shell cmd wifi connect-network AndroidWifi open`
 for this AVD); cached pages can load even when Android has no network. Install the Firefox APK with `adb install -r /path/firefox.apk`, and finish
-its first-run welcome screens in the dedicated AVD. Native permission prompts
+its first-run welcome screens in the dedicated AVD. Finish Firefox welcome screens in each fresh WebDriver profile. Native prompts
 are part of the real browser UI; temporary extension installation confirms its
-native “added” dialog, and the HTTPS status test grants the requested host access.
+native “added” dialog, the extension requires no HTTPS host permissions.
 
 ```sh
 python3 tests/android_fixture.py /tmp/knock-android-lab/fixture > /tmp/android-fixture.log 2>&1 &
 # Wait for fixture/ready.json. Build browser artifacts first if dist is absent.
 PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/android_chrome.mjs /tmp/knock-android-lab/fixture
-# Chrome changes the profile revision; export the current enrollment for Firefox.
+# Re-export the current profile if the fixture configuration was changed.
 python3 - <<'PY'
 import json, socket
 with socket.socket(socket.AF_UNIX) as connection:
@@ -91,8 +91,9 @@ The lab uses a self-signed test certificate. Chrome accepts it only in its
 disposable test process. Firefox WebDriver enables `acceptInsecureCerts`; the web
 app test additionally imports the fixture CA into its disposable NSS profile
 (the current driver does this for either mode). This does not
-change TLS handling in released clients. The Firefox XPI is a temporary debug
-installation, not a Mozilla-signed permanent installation. An emulator run is
+change TLS handling in released clients. The Android functionality run uses a temporary debug install of the final
+unsigned payload. The release XPI is Mozilla-signed and is tested separately
+for permanent installation in stock desktop Firefox. An emulator run is
 not verification on physical phones, other Android versions or Safari/iOS.
 These runs imported enrollment URL/text, not a camera/gallery image, and did not
 test adding a launcher icon. Chrome is the exact system image version above,

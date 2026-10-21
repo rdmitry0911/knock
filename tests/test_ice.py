@@ -26,7 +26,7 @@ const {dispatch}=await import(MODULE);
 let input='';for await(const chunk of process.stdin)input+=chunk;
 const [alice,bob]=JSON.parse(input),store=new Map();
 globalThis.localStorage={getItem:key=>store.get(key),setItem:(key,value)=>store.set(key,value)};
-globalThis.location={origin:alice.server_url};
+
 await dispatch({action:'import',bundle:alice});const a=await dispatch({action:'load'});
 await dispatch({action:'import',bundle:bob});const b=await dispatch({action:'load'});
 const pinned=await dispatch({action:'load',key:a.active});
@@ -42,6 +42,31 @@ aliceUpdated:updated.profile.last_ice_ms>0,bobUntouched:!current.profile.last_ic
         self.assertTrue(result['activeUnchanged'] and result['aliceUpdated'] and result['bobUntouched'])
         self.assertEqual(common.verify_ice_token(bundles[0],result['token'],'192.0.2.7')[0],'open')
         with self.assertRaises(ValueError):common.verify_ice_token(bundles[1],result['token'],'192.0.2.7')
+
+    def test_profile_deletion_is_local_and_removed_profile_cannot_sign(self):
+        db,alice,bob=database();bundles=[server.export_bundle(db,i) for i in (alice,bob)]
+        codec='data:text/javascript;base64,'+base64.b64encode((ROOT/'extension/profile-codec.js').read_bytes()).decode()
+        source=(ROOT/'extension/browser-client.js').read_text().replace("'./profile-codec.js'",json.dumps(codec))
+        module='data:text/javascript;base64,'+base64.b64encode(source.encode()).decode()
+        script='''import {webcrypto} from 'node:crypto';globalThis.crypto=webcrypto;
+const {dispatch}=await import(MODULE);let input='';for await(const c of process.stdin)input+=c;
+const [alice,bob]=JSON.parse(input),store=new Map();let network=0;
+globalThis.fetch=()=>{network++;throw new Error('Network must not be used');};
+globalThis.localStorage={getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v)};
+await dispatch({action:'import',bundle:alice});const a=await dispatch({action:'load'});
+await dispatch({action:'import',bundle:bob});const b=await dispatch({action:'load'});
+// Re-importing a v2 copy replaces the same profile instead of duplicating it.
+await dispatch({action:'import',bundle:{...alice,format:'knock-control-client-v2',server_url:'https://127.0.0.1:8443',server_certificate_sha256:'a'.repeat(64)}});
+if((await dispatch({action:'load'})).profiles.length!==2)throw new Error('Duplicate legacy profile');
+await dispatch({action:'select',key:b.active});await dispatch({action:'remove',key:a.active});
+const remaining=await dispatch({action:'load'});let rejected=0;
+for(const request of [{action:'ice-proof',key:a.active,operation:'open',source:'192.0.2.7'},{action:'status'},{action:'configure',settings:{}},{action:'save-transport',connection:{}}]){
+try{await dispatch(request);}catch{rejected++;}}
+await dispatch({action:'remove',key:b.active});const empty=await dispatch({action:'load'});
+process.stdout.write(JSON.stringify({network,rejected,remaining:remaining.profile.profile_id,active:empty.active,count:empty.profiles.length,profile:empty.profile}));
+'''.replace('MODULE',json.dumps(module))
+        result=json.loads(subprocess.run(['node','--input-type=module','-e',script],input=json.dumps(bundles),text=True,capture_output=True,check=True).stdout)
+        self.assertEqual(result,{'network':0,'rejected':4,'remaining':bob,'active':None,'count':0,'profile':None})
 
     def test_browser_python_token_compatibility_and_binding(self):
         db,ident,_=database();bundle=server.export_bundle(db,ident);now=1700000000;source='192.0.2.7'

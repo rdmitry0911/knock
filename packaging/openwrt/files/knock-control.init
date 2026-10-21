@@ -4,7 +4,6 @@ START=96
 STOP=10
 
 start_service() {
-    /usr/sbin/knock-control migrate || return 1
     /usr/sbin/knock-control configured >/dev/null || return 0
     /usr/sbin/knock-control activated >/dev/null || return 0
     /usr/sbin/knock-control generate-config || return 1
@@ -19,7 +18,6 @@ start_service() {
 
 reload_service() {
     /usr/sbin/knock-control apply || return 1
-    /etc/init.d/knock-control-api restart
 }
 
 service_triggers() {

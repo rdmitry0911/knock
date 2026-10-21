@@ -4,7 +4,7 @@
 The test driver uses a Unix socket; Android ON/OFF reaches the actual UDP capture.
 """
 import argparse
-from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer,SimpleHTTPRequestHandler
 import json
 import os
 from pathlib import Path
@@ -18,7 +18,6 @@ import threading
 import time
 
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'controller'))
-import api
 import common
 import qr_codec
 import server
@@ -28,13 +27,13 @@ def main():
     assert os.geteuid()==0 and os.readlink('/proc/self/ns/net')!=os.readlink('/proc/1/ns/net'),'Use an isolated root network namespace'
     parser=argparse.ArgumentParser();parser.add_argument('directory',type=Path);args=parser.parse_args()
     work=args.directory;work.mkdir(mode=0o700,parents=True,exist_ok=True);work.chmod(0o700)
-    server.CONFIG=work/'settings.json';server.DAEMON_CONFIG=work/'knockd.conf';server.REPLAYS=work/'replay.sqlite';server.LOCK=work/'lock';server.CERT=work/'server.crt';server.KEY=work/'server.key'
+    server.CONFIG=work/'settings.json';server.DAEMON_CONFIG=work/'knockd.conf';server.REPLAYS=work/'replay.sqlite';server.LOCK=work/'lock'
     server.IPSET=os.environ.get('IPSET_BIN',server.IPSET);server.DAEMON=str(ROOT/'knockd')
     control=work/'control'
     control.write_text('#!/usr/bin/python3\nimport sys,fcntl\nfrom pathlib import Path\nsys.path.insert(0,'+repr(str(ROOT/'controller'))+')\nimport server\nserver.CONFIG=Path('+repr(str(server.CONFIG))+')\nserver.REPLAYS=Path('+repr(str(server.REPLAYS))+')\nserver.IPSET='+repr(server.IPSET)+'\nwith open('+repr(str(server.LOCK))+',"a") as lock:\n fcntl.flock(lock,fcntl.LOCK_EX)\n server.access_ice(*sys.argv[2:])\n');control.chmod(0o700);server.CONTROL=str(control)
     if server.CONFIG.exists():db=server.load();ident=next(iter(db['profiles']))
     else:
-        db=server.init_server('203.0.113.1','lo',18443,'203.0.113.1')
+        db=server.init_server('203.0.113.1','lo')
         ident=server.issue(db,'Android emulator',[23456],[23456,23458],15,60)
     db['activated']=True
     common.atomic_write(server.CONFIG,json.dumps(db));common.atomic_write(server.DAEMON_CONFIG,server.render(db));server.firewall(db)
@@ -43,17 +42,23 @@ def main():
         common.atomic_write(work/'bundle.json',json.dumps(current));common.atomic_write(work/'enrollment.txt',qr_codec.enrollment_url(current));qr_codec.write_qr(current,work/'enrollment.png')
         return current
     bundle=export_profile()
-    tls=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);tls.load_cert_chain(server.CERT,server.KEY);api.APP_ROOT=ROOT/'dist/web-app'
+    subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-keyout',str(work/'server.key'),'-out',str(work/'server.crt'),'-days','1','-subj','/CN=203.0.113.1'],check=True,capture_output=True)
+    tls=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);tls.load_cert_chain(work/'server.crt',work/'server.key')
     api_requests=[]
-    class Handler(api.APIHandler):
-        def do_POST(self):api_requests.append(self.path);super().do_POST()
+    class Handler(SimpleHTTPRequestHandler):
+        def __init__(self,*a,**kw):super().__init__(*a,directory=str(ROOT/'dist/web-app'),**kw)
+        def do_GET(self):
+            self.path='/app.html' if self.path=='/app/' else self.path.replace('/app/','/',1)
+            super().do_GET()
+        def do_POST(self):api_requests.append(self.path);self.send_error(404)
+        def log_message(self,*a):pass
     endpoint=None
-    def open_api():
+    def open_web():
         nonlocal endpoint
         if endpoint is None:
-            endpoint=api.APIServer(('203.0.113.1',18443),tls);endpoint.RequestHandlerClass=Handler
+            endpoint=ThreadingHTTPServer(('203.0.113.1',18443),Handler);endpoint.socket=tls.wrap_socket(endpoint.socket,server_side=True)
             threading.Thread(target=endpoint.serve_forever,daemon=True).start()
-    def close_api():
+    def close_web():
         nonlocal endpoint
         if endpoint is not None:endpoint.shutdown();endpoint.server_close();endpoint=None
     class Protected(BaseHTTPRequestHandler):
@@ -94,22 +99,22 @@ def main():
     daemon=start_daemon();server.active=lambda:daemon.poll() is None
     def service_operation(op):
         assert op=='reload';daemon.send_signal(signal.SIGHUP)
-    server.service_operation=service_operation;open_api()
+    server.service_operation=service_operation;open_web()
     (work/'control.sock').unlink(missing_ok=True)
     management=socket.socket(socket.AF_UNIX);management.bind(str(work/'control.sock'));management.listen(1);management.settimeout(.5)
     def status():
         sources=sorted({p['source'] for p in captures})
         return {'ok':True,'api_open':endpoint is not None,'api_requests':len(api_requests),'captures':captures,'grants':{ip:server.grant_active(ident,ip) for ip in sources},'stun_secret_leaks':len(leaks),'daemon_alive':daemon.poll() is None,'knock_udp_listener':any(int(r.split()[1].split(':')[1],16)==bundle['settings']['base'] for r in Path('/proc/net/udp').read_text().splitlines()[1:])}
     def shutdown(*_):stop.set()
-    signal.signal(signal.SIGTERM,shutdown);common.atomic_write(work/'ready.json',json.dumps({'ok':True,'profile_id':ident,'url':bundle['server_url'],'base':bundle['settings']['base']}))
+    signal.signal(signal.SIGTERM,shutdown);common.atomic_write(work/'ready.json',json.dumps({'ok':True,'profile_id':ident,'web_url':'https://203.0.113.1:18443/app/','base':bundle['settings']['base']}))
     try:
         while not stop.is_set():
             try:conn,_=management.accept()
             except socket.timeout:continue
             with conn:
                 q=json.loads(conn.recv(8192));op=q['op']
-                if op=='close-api':close_api()
-                elif op=='open-api':open_api()
+                if op=='close-web':close_web()
+                elif op=='open-web':open_web()
                 elif op=='export-profile':export_profile()
                 elif op=='restart-daemon':daemon.terminate();daemon.wait(timeout=5);daemon=start_daemon();time.sleep(.3)
                 elif op=='replay':
@@ -121,7 +126,7 @@ def main():
                 try:conn.sendall(json.dumps(status()).encode())
                 except (BrokenPipeError,ConnectionResetError):pass
     finally:
-        stop.set();daemon.terminate();daemon.wait(timeout=5);close_api();management.close();stun.close();raw.close()
+        stop.set();daemon.terminate();daemon.wait(timeout=5);close_web();management.close();stun.close();raw.close()
         for listener in listeners:listener.shutdown();listener.server_close()
 
 

@@ -2,56 +2,20 @@
   "m_5d6c2b46": {
     "message": "サーバー発行の Knock Control プロファイルが必要です"
   },
-  "m_83dbae11": {
-    "message": "アクセス無効"
-  },
-  "m_58b104fa": {
-    "message": "アクセス有効"
-  },
-  "m_aa539a15": {
-    "message": "アクセスを無効にしました。"
-  },
-  "m_755700f3": {
-    "message": "アクセス未確認"
-  },
   "m_e5d83609": {
     "message": "プロファイルを追加"
   },
   "m_46dc0362": {
     "message": "ホーム画面に追加すると素早くアクセスできます。"
   },
-  "m_974e8a53": {
-    "message": "追加 TCP ポート"
-  },
-  "m_49245e8e": {
-    "message": "このサーバーへのアクセスを許可してください：{origin}"
-  },
-  "m_25939de3": {
-    "message": "許可 TCP ポート：{ports}。ルール：{rules}。最大アイドル時間：{seconds} 秒。"
-  },
-  "m_3aeaed6f": {
-    "message": "サービス通信が {seconds} 秒ないと自動で閉じます。"
-  },
   "m_292b282e": {
     "message": "カメラを利用できません。QR 画像を読み込んでください。"
-  },
-  "m_46d042c7": {
-    "message": "安全に接続できません。ネットワーク、HTTPS 証明書、ブラウザーの権限を確認してください。"
-  },
-  "m_66a5f0ca": {
-    "message": "STUN で公開 IPv4 を取得できません。手動で入力してください。"
   },
   "m_4957159b": {
     "message": "画像を読み込めません"
   },
-  "m_2b89766f": {
-    "message": "状態を確認"
-  },
   "m_9e507fd8": {
     "message": "ポート範囲とタイムアウトを確認してください"
-  },
-  "m_732bdad5": {
-    "message": "確認中…"
   },
   "m_b1827bc8": {
     "message": "8 MB 以下の QR 画像を選択してください"
@@ -62,35 +26,11 @@
   "m_f7366892": {
     "message": "カメラを閉じる"
   },
-  "m_1d047c51": {
-    "message": "この端末に接続設定を保存しました。"
-  },
-  "m_3fe23d46": {
-    "message": "接続設定"
-  },
   "m_227026c0": {
     "message": "アクセスを無効化中…"
   },
-  "m_72223725": {
-    "message": "ON/OFF ごとに STUN で取得"
-  },
-  "m_af0f01b1": {
-    "message": "VPN が使えない場合の保護サービスへの緊急アクセス。サーバー発行の TOTP プロファイルと IP 別のアイドル制限に対応。"
-  },
   "m_9c9e6775": {
     "message": "アクセスを有効化中…"
-  },
-  "m_115c6024": {
-    "message": "Authenticator の 6 桁コードを入力してください"
-  },
-  "m_237aef80": {
-    "message": "プロファイルの値を使用"
-  },
-  "m_1adbe8f4": {
-    "message": "ICE ノックが開始されません。WebRTC/UDP を許可するか HTTPS を選択してください。"
-  },
-  "m_c7afd4f5": {
-    "message": "アイドルタイムアウト（秒）"
   },
   "m_573e0af4": {
     "message": "インポート"
@@ -125,14 +65,8 @@
   "m_37f8693": {
     "message": "STUN サーバーが無効です"
   },
-  "m_d155bd45": {
-    "message": "接続設定が無効です"
-  },
   "m_7b80d433": {
     "message": "登録 QR が無効です"
-  },
-  "m_5b70f016": {
-    "message": "フィールド {field} が無効です"
   },
   "m_80ddcdf3": {
     "message": "ノックサーバーのアドレスが無効です"
@@ -158,44 +92,14 @@
   "m_cdf1d03c": {
     "message": "シークレットが無効です"
   },
-  "m_30c46225": {
-    "message": "転送方式が無効です"
-  },
   "m_984b72ce": {
     "message": "JSON ファイルまたは QR テキスト"
-  },
-  "m_51c8f8f6": {
-    "message": "Knock Control"
-  },
-  "m_f1e1bf7": {
-    "message": "ノックサーバー IPv4 の上書き"
-  },
-  "m_a00b7d78": {
-    "message": "制限は管理者が設定します。"
   },
   "m_57c40f0f": {
     "message": "プロファイル設定がありません"
   },
-  "m_b88a3295": {
-    "message": "サーバー証明書のフィンガープリントがありません"
-  },
-  "m_85ef5e1f": {
-    "message": "自分の公開 IPv4"
-  },
-  "m_d16bd2f2": {
-    "message": "ON/OFF"
-  },
-  "m_4da33e9e": {
-    "message": "ON/OFF、状態、設定は HTTPS を使用します。"
-  },
-  "m_3730d9c8": {
-    "message": "ON/OFF は WebRTC ICE による UDP を使用し、HTTPS リクエストは不要です。状態と設定は HTTPS を使用します。"
-  },
   "m_c8c3476b": {
     "message": "全画面を開く"
-  },
-  "m_753b8714": {
-    "message": "このプロファイルのウェブアプリを開いてください：{url}"
   },
   "m_bd9b7e8": {
     "message": "サーバー発行のリンクを貼り付け"
@@ -212,12 +116,6 @@
   "m_49530b62": {
     "message": "読み込みました。ON を押してください。"
   },
-  "m_4d8c7ef6": {
-    "message": "プロファイルルール（カンマ区切り）"
-  },
-  "m_d675456f": {
-    "message": "プロファイル設定"
-  },
   "m_e0588df3": {
     "message": "QR 画像"
   },
@@ -227,20 +125,8 @@
   "m_adbb1abf": {
     "message": "QR が見つかりません。白い余白を含む鮮明な画像を選択してください。"
   },
-  "m_a67b9f7e": {
-    "message": "STUN に送られるのは IP のみで、シークレットや署名済みノックは送られません。公開 IP を手動指定すると STUN は不要です。ICE にはサーバー r6 以降と最新のプロファイルが必要です。"
-  },
-  "m_2c11c213": {
-    "message": "公開 IP 検出用 STUN サーバー"
-  },
   "m_cb2c920": {
     "message": "STUN サーバー形式：stun:ホスト:ポート"
-  },
-  "m_fbd68890": {
-    "message": "接続設定を保存"
-  },
-  "m_e1c3ff30": {
-    "message": "サーバーに保存"
   },
   "m_b9d8dd7c": {
     "message": "サーバー発行の QR をスキャンするか画像を選択してください。"
@@ -248,17 +134,8 @@
   "m_3a5ba55f": {
     "message": "カメラでスキャン"
   },
-  "m_f269eee6": {
-    "message": "シーケンス送信済み"
-  },
   "m_8aff9210": {
     "message": "サーバーアクセス"
-  },
-  "m_ae083b85": {
-    "message": "ICE を使うには接続設定でノックサーバーの IPv4 を指定してください。"
-  },
-  "m_e572e3c1": {
-    "message": "設定を保存しました。ON を押してください。"
   },
   "m_870ac6d5": {
     "message": "署名済み UDP ノック {operation} を送信しました。サーバーの応答は要求していません。"
@@ -266,41 +143,20 @@
   "m_ca9e287a": {
     "message": "TCP ポートまたは名前付きルールが必要です"
   },
-  "m_d2dd13d9": {
-    "message": "Authenticator コードが無効または期限切れです"
-  },
   "m_f2ffc9": {
     "message": "QR のアドレスとプロファイルのサーバーが一致しません"
   },
   "m_dd1501da": {
     "message": "QR またはプロファイルファイルが大きすぎます"
   },
-  "m_7f9a4b00": {
-    "message": "このプロファイルでは管理者が TCP/UDP クライアントのみ許可しています"
-  },
   "m_dbbca3cd": {
     "message": "ローカルのプロファイル保存領域が破損しています"
-  },
-  "m_9e7ee36a": {
-    "message": "応答は別のプロファイルのものです"
-  },
-  "m_abf214c6": {
-    "message": "サーバーは HTTPS を使用する必要があります"
-  },
-  "m_f9b9e3bf": {
-    "message": "サーバーの応答が大きすぎます"
   },
   "m_abd8d76d": {
     "message": "これは Authenticator のシークレットです。完全な Knock Control プロファイルの QR を読み込んでください。"
   },
   "m_e80c5a2f": {
     "message": "Knock Control の登録 QR ではありません"
-  },
-  "m_69f5ea56": {
-    "message": "別のサーバーのプロファイルです。{url} を開いてください"
-  },
-  "m_cc4c7ce4": {
-    "message": "WebRTC ICE の UDP、HTTPS API 不要"
   },
   "m_5ba4da28": {
     "message": "不明な操作です"
@@ -314,26 +170,11 @@
   "m_5f2a0fdf": {
     "message": "このブラウザーでは WebRTC を利用できません"
   },
-  "m_4b6dacef": {
-    "message": "保護されたサービスを利用できます。"
-  },
-  "m_ada7afdb": {
-    "message": "なし"
-  },
-  "m_7fc72fc6": {
-    "message": "ssh_lan,udp_service,ping"
-  },
-  "m_2de77f31": {
-    "message": "拡張機能から応答がありません"
-  },
-  "m_37f75f9d": {
-    "message": "サーバーがリクエストを拒否しました"
-  },
   "extensionName": {
     "message": "Knock Control"
   },
   "extensionDescription": {
-    "message": "VPN が使えない場合の保護サービスへの緊急アクセス。サーバー発行の TOTP プロファイルと IP 別のアイドル制限に対応。"
+    "message": "UDP knock の ON/OFF とローカルのプロファイル管理。"
   },
   "m_31917eab": {
     "message": "サーバー発行の JSON プロファイルを読み込んでください。"
@@ -346,5 +187,32 @@
   },
   "m_d4157397": {
     "message": "デスクトップでは JSON プロファイルを読み込んでください。"
+  },
+  "m_981e9b03": {
+    "message": "プロファイルを削除"
+  },
+  "m_51dc664e": {
+    "message": "このブラウザーからプロファイル {name} を削除しますか？"
+  },
+  "m_3ec011b4": {
+    "message": "このブラウザーからプロファイルを削除しました。"
+  },
+  "m_6b47b3af": {
+    "message": "先にサーバー発行のプロファイルをインポートしてください"
+  },
+  "m_4b51502a": {
+    "message": "ICE 対応サーバーからこのプロファイルを再エクスポートしてください"
+  },
+  "m_e7ccdc6b": {
+    "message": "旧形式のプロファイル URL が無効です"
+  },
+  "m_53461981": {
+    "message": "STUN で公開 IPv4 を取得できません。公開 IPv4 を含むプロファイルを管理者に依頼してください。"
+  },
+  "m_b0341bda": {
+    "message": "ICE knock を開始できません。WebRTC/UDP を許可してください。"
+  },
+  "m_3f9b9f70": {
+    "message": "knock サーバーの IPv4 アドレスを含むプロファイルを管理者に依頼してください。"
   }
 }

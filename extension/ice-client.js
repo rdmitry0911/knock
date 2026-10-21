@@ -1,5 +1,5 @@
 // Passive ICE checks: the target does not need to answer or bind a UDP socket.
-// All traffic comes from RTCPeerConnection in this visible extension/app page.
+// RTCPeerConnection runs in the extension transport document or standalone client.
 export function ipv4(value) {
   if(typeof value!=='string'||!/^\d{1,3}(\.\d{1,3}){3}$/.test(value))return false;
   return value.split('.').every(n=>String(Number(n))===n&&Number(n)<=255);
@@ -17,7 +17,7 @@ export async function sendIce(host,port,token,durationMs=4500,stunServer) {
     let source;
     if(typeof token==='function') {
       source=new Promise((resolve,reject)=>{
-        timer=setTimeout(()=>reject(new Error('Cannot discover the public IPv4 via STUN. Enter it manually.')),7000);
+        timer=setTimeout(()=>reject(new Error('Cannot discover the public IPv4 via STUN. Ask the administrator for a profile with your public IPv4.')),7000);
         pc.onicecandidate=e=>{const c=e.candidate;if(c?.type==='srflx'&&ipv4(c.address))resolve(c.address);};
       });source.catch(()=>{});
     }
@@ -38,6 +38,6 @@ export async function sendIce(host,port,token,durationMs=4500,stunServer) {
     let checking=pc.iceConnectionState!=='new';
     pc.addEventListener('iceconnectionstatechange',()=>{if(pc.iceConnectionState!=='new')checking=true;});
     await new Promise(resolve=>setTimeout(resolve,durationMs));
-    if(!checking)throw new Error('ICE knock did not start. Allow WebRTC/UDP or select HTTPS.');
+    if(!checking)throw new Error('ICE knock did not start. Allow WebRTC/UDP.');
   } finally {clearTimeout(timer);channel?.close();pc.close();}
 }

@@ -68,12 +68,12 @@ def validate(db):
     for name, value in rules.items():
         rule_names([name])
         rule = normalize(value)
-        # Protecting transport or management ports would make recovery impossible.
+        # Protecting knock transport ports would make recovery impossible.
         if rule['type'] != 'forward' and rule['protocol'] != 'icmp':
             for entry in rule['ports']:
                 a, b = int(entry.split('-')[0]), int(entry.split('-')[-1])
-                if rule['protocol'] == 'tcp' and a <= db['api_port'] <= b or any(a <= base+255 and b >= base for base in bases):
-                    raise ValueError('Rule overlaps the API or knock ports')
+                if any(a <= base+255 and b >= base for base in bases):
+                    raise ValueError('Rule overlaps the knock ports')
         rules[name] = rule
     entries=list(rules.values())
     for i, left in enumerate(entries):
