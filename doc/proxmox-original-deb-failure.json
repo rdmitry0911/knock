@@ -1,0 +1,27 @@
+{
+  "result": "FAIL",
+  "tested_date": "2026-10-21",
+  "package": "knock-control_4.0.3-1_amd64.deb",
+  "sha256": "01e77d1126c435f23dc59b1360f8d32329767755975dc6e6e82d098cfb80cb6d",
+  "platform": "Proxmox VE 8.4.21, full QEMU/KVM VM, kernel 6.8.12-43-pve",
+  "installation": "PASS: apt resolves dependencies; CLI init and profile issuance succeed",
+  "activation": "FAIL: knock-control-firewall.service exits with iptables-restore status 2; dependent packet daemon cannot start",
+  "iptables_restore_binary": "/usr/sbin/xtables-legacy-multi",
+  "root_cause": "The firewall unit limits capabilities to CAP_NET_ADMIN, but iptables-legacy also needs CAP_NET_RAW to open its control socket",
+  "isolated_systemd_reproduction": [
+    {
+      "capability_bounding_set": "CAP_NET_ADMIN",
+      "no_new_privileges": true,
+      "command": "iptables-restore --test using the VM's saved rules",
+      "exit_status": 2,
+      "stderr": "iptables-restore v1.8.9 (legacy): iptables-restore: unable to initialize table 'raw'"
+    },
+    {
+      "capability_bounding_set": "CAP_NET_ADMIN CAP_NET_RAW",
+      "no_new_privileges": true,
+      "command": "iptables-restore --test using the same saved rules",
+      "exit_status": 0
+    }
+  ],
+  "resolution": "Add CAP_NET_RAW to the firewall systemd unit and install package revision 4.0.3-2. Original revision 1 assets are retained unchanged."
+}

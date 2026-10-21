@@ -1,0 +1,23 @@
+{
+  "result": "PASS",
+  "package_format": "rpm",
+  "package": "knock-control-4.0.3-2.el9.x86_64.rpm",
+  "sha256": "9eae65aaa518d8d4e45f0cfacb7c085fa0e4b5184ed16823f71db276ae74a82a",
+  "distribution": "NAME=\"Rocky Linux\"\nVERSION=\"9.8 (Blue Onyx)\"\nRELEASE_TYPE=\"stable\"\nID=\"rocky\"\nID_LIKE=\"rhel centos fedora\"\nVERSION_ID=\"9.8\"\nPLATFORM_ID=\"platform:el9\"\nPRETTY_NAME=\"Rocky Linux 9.8 (Blue Onyx)\"\nANSI_COLOR=\"0;32\"\nLOGO=\"fedora-logo-icon\"\nCPE_NAME=\"cpe:/o:rocky:rocky:9::baseos\"\nHOME_URL=\"https://rockylinux.org/\"\nVENDOR_NAME=\"RESF\"\nVENDOR_URL=\"https://resf.org/\"\nBUG_REPORT_URL=\"https://bugs.rockylinux.org/\"\nSUPPORT_END=\"2032-05-31\"\nROCKY_SUPPORT_PRODUCT=\"Rocky-Linux-9\"\nROCKY_SUPPORT_PRODUCT_VERSION=\"9.8\"\nREDHAT_SUPPORT_PRODUCT=\"Rocky Linux\"\nREDHAT_SUPPORT_PRODUCT_VERSION=\"9.8\"\n",
+  "architecture": "x86_64",
+  "checks": [
+    "Native package manager installed package and ran lifecycle scripts",
+    "No automatic credentials, service enablement, HTTP API or management listener",
+    "Installed CLI initializes/issues v3 JSON and QR PNG; generated daemon config validates",
+    "Installed systemd units pass systemd-analyze verify",
+    "Real installed packet daemon -> installed Python callback -> kernel iptables/ipset ON/OFF",
+    "Captured ON replay rejected after daemon restart",
+    "Reinstall and removal preserve credentials, revisions and durable replay journal",
+    "Removal retains firewall protection; reinstall uses retained credentials"
+  ],
+  "limitations": [
+    "Disposable chroot and isolated kernel network namespace; not a booted VM",
+    "Systemd units verified statically; systemd PID 1 and reboot not exercised"
+  ],
+  "tested_date": "2026-10-21"
+}

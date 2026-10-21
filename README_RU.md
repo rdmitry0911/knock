@@ -2,6 +2,9 @@
 
 [Скачать релиз 4.0.3](https://github.com/rdmitry0911/knock/releases/tag/v4.0.3): подписанный Mozilla XPI, Chromium ZIP, Linux DEB/RPM, OpenWrt APK и исходники.
 Установка и сборка deb/rpm описаны в [руководстве по Linux-пакетам](doc/LINUX_PACKAGES.md).
+Для Proxmox используйте **deb 4.0.3-2**: исправлены права службы для iptables-legacy.
+Пакет проверен в полноценных VM с Proxmox 8.4.21 и 9.2.21, включая ON/OFF,
+pve-firewall, перезагрузку и переустановку. [Отчёты проверки](doc/PROXMOX_TESTING.md).
 
 В расширении оставлены **ON, OFF, импорт, выбор и удаление профилей**. Настройки,
 проверка статуса и HTTPS-режим удалены. На сервере нет API, TLS, CGI или отдельного

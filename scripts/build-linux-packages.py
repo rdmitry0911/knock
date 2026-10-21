@@ -9,6 +9,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = '4.0.3'
+RELEASE = '2'
 
 
 def run(*args, **kwargs):
@@ -45,7 +46,7 @@ def deb(work, output):
     (work / 'debian/control').write_text('Source: knock-control\nSection: net\nPriority: optional\nMaintainer: Dmitry R <29107637+rdmitry0911@users.noreply.github.com>\n\nPackage: knock-control\nArchitecture: any\nDescription: Authenticated emergency access\n')
     deps = run('dpkg-shlibdeps', '-O', '-e' + str(stage / 'usr/sbin/knock-control-daemon'), cwd=work).removeprefix('shlibs:Depends=')
     (control / 'control').write_text(f'''Package: knock-control
-Version: {VERSION}-1
+Version: {VERSION}-{RELEASE}
 Architecture: {arch}
 Maintainer: Dmitry R <29107637+rdmitry0911@users.noreply.github.com>
 Section: net
@@ -66,7 +67,7 @@ Description: Authenticated emergency access with browser ON/OFF
         path = control / name
         path.write_text('#!/bin/sh\nset -eu\n' + body)
         path.chmod(0o755)
-    artifact = output / f'knock-control_{VERSION}-1_{arch}.deb'
+    artifact = output / f'knock-control_{VERSION}-{RELEASE}_{arch}.deb'
     run('dpkg-deb', '--build', '--root-owner-group', str(stage), str(artifact))
     print(artifact)
 
@@ -74,7 +75,7 @@ Description: Authenticated emergency access with browser ON/OFF
 def rpm(work, output):
     for name in ('SOURCES', 'SPECS', 'BUILD', 'BUILDROOT', 'RPMS', 'SRPMS'):
         (work / name).mkdir()
-    source_archive(work / 'SOURCES' / f'knock-control-{VERSION}-linux.tar.gz')
+    source_archive(work / 'SOURCES' / f'knock-control-{VERSION}-linux{RELEASE}.tar.gz')
     spec = work / 'SPECS/knock-control.spec'
     shutil.copy2(ROOT / 'packaging/linux/knock-control.spec', spec)
     subprocess.run(['rpmbuild', '-ba', '--define', '_topdir ' + str(work), str(spec)], check=True)
@@ -87,12 +88,12 @@ def rpm(work, output):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--format', required=True, choices=('deb', 'rpm', 'source'))
-    parser.add_argument('--output', type=Path, default=ROOT / 'dist/linux/4.0.3')
+    parser.add_argument('--output', type=Path, default=ROOT / f'dist/linux/{VERSION}-{RELEASE}')
     args = parser.parse_args()
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=True)
     if args.format == 'source':
-        path = args.output / f'knock-control-{VERSION}-linux.tar.gz'
+        path = args.output / f'knock-control-{VERSION}-linux{RELEASE}.tar.gz'
         source_archive(path)
         print(path)
     else:

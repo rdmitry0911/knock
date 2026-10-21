@@ -1,10 +1,10 @@
 Name:           knock-control
 Version:        4.0.3
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Authenticated emergency access with browser ON/OFF
 License:        GPL-2.0-or-later AND MIT
 URL:            https://github.com/rdmitry0911/knock
-Source0:        knock-control-%{version}-linux.tar.gz
+Source0:        knock-control-%{version}-linux2.tar.gz
 BuildRequires:  gcc
 BuildRequires:  libpcap-devel
 BuildRequires:  openssl-devel
@@ -59,5 +59,8 @@ fi
 %license /usr/share/doc/knock-control/COPYING
 
 %changelog
+* Wed Oct 21 2026 Dmitry R <29107637+rdmitry0911@users.noreply.github.com> - 4.0.3-2
+- Permit raw sockets for iptables-legacy in the systemd firewall unit.
+
 * Wed Oct 21 2026 Dmitry R <29107637+rdmitry0911@users.noreply.github.com> - 4.0.3-1
 - Package the knock-only server with local profile administration.

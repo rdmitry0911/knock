@@ -38,6 +38,9 @@ The standalone TCP/UDP CLI remains available.
 OpenWrt uses native C, procd and firewall4/nftables. Configuration is
 `/etc/config/knock-control`; no Python, dedicated uhttpd or web application is
 installed. Linux uses the Python administrator CLI, systemd and iptables/ipset.
+For Proxmox, use Linux package revision **4.0.3-2**: full VMs with PVE 8.4.21
+and 9.2.21 passed ON/OFF, classic firewall integration, reboot and reinstall.
+[Proxmox verification and the revision 1 fix](doc/PROXMOX_TESTING.md).
 An upgrade stops/disables the retired API and removes its unit/CGI. Existing
 credentials and replay journals are preserved; old ICE-enabled JSON/QR profiles
 can be imported. New v3 profiles and `knock-control://import/` QR payloads contain

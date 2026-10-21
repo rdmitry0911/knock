@@ -1,0 +1,93 @@
+{
+  "result": "PASS",
+  "tested_date": "2026-10-21",
+  "proxmox_major": "8",
+  "package": "knock-control_4.0.3-2_amd64.deb",
+  "sha256": "ebcb88321e2455c3e56bf38a40924301d125c4882ae46a6cdea81dd2a631346a",
+  "image": "debian-12.qcow2",
+  "image_sha512": "dc0d7b526a3a9a9265142fe8e903984c03f8d605ac4ba6f14d15d27988a69581fb05fc06cd2a6d79f6eaf68ba9725f2eb38b5ddd64ad166faadad279af776c9e",
+  "proxmox_keyring_sha256": "13a87cec79f2d05f40f125629e4b509080a5c0286608bea273e36be9809ecaba",
+  "virtualization": "QEMU KVM, full VM with actual Proxmox kernel and services",
+  "phases": [
+    {
+      "phase": "debian-boot",
+      "result": "PASS",
+      "distribution": "PRETTY_NAME=\"Debian GNU/Linux 12 (bookworm)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"12\"\nVERSION=\"12 (bookworm)\"\nVERSION_CODENAME=bookworm\nID=debian\nHOME_URL=\"https://www.debian.org/\"\nSUPPORT_URL=\"https://www.debian.org/support\"\nBUG_REPORT_URL=\"https://bugs.debian.org/\"\n"
+    },
+    {
+      "phase": "proxmox-boot",
+      "result": "PASS",
+      "kernel": "6.8.12-43-pve",
+      "pveversion": "proxmox-ve: 8.4.0 (running kernel: 6.8.12-43-pve)\npve-manager: 8.4.21 (running version: 8.4.21/2606ac850d46da29)\nproxmox-kernel-helper: 8.1.4\nproxmox-kernel-6.8.12-43-pve-signed: 6.8.12-43\nproxmox-kernel-6.8: 6.8.12-43\nceph-fuse: 16.2.15+ds-0+deb12u2\ncorosync: 3.1.10-pve2~bpo12+1\ncriu: 3.17.1-2+deb12u2\nglusterfs-client: 10.3-5\nifupdown2: 3.2.0-1+pmx11\nlibjs-extjs: 7.0.0-7\nlibknet1: 1.30-pve2\nlibproxmox-acme-perl: 1.6.0\nlibproxmox-backup-qemu0: 1.5.2\nlibproxmox-rs-perl: 0.3.5\nlibpve-access-control: 8.2.3\nlibpve-apiclient-perl: 3.3.2\nlibpve-cluster-api-perl: 8.1.3\nlibpve-cluster-perl: 8.1.3\nlibpve-common-perl: 8.3.8\nlibpve-guest-common-perl: 5.2.2\nlibpve-http-server-perl: 5.2.2\nlibpve-network-perl: 0.11.3\nlibpve-rs-perl: 0.9.4\nlibpve-storage-perl: 8.3.8\nlibspice-server1: 0.15.1-1\nlvm2: 2.03.16-2\nlxc-pve: 6.0.0-2\nlxcfs: 6.0.0-pve2\nnovnc-pve: 1.6.0-2.1\nproxmox-backup-client: 3.4.9-1\nproxmox-backup-file-restore: 3.4.9-1\nproxmox-backup-restore-image: 0.7.0\nproxmox-firewall: 0.7.1\nproxmox-kernel-helper: 8.1.4\nproxmox-mail-forward: 0.3.3\nproxmox-mini-journalreader: 1.5\nproxmox-offline-mirror-helper: 0.6.8\nproxmox-widget-toolkit: 4.3.18\npve-cluster: 8.1.3\npve-container: 5.3.6\npve-docs: 8.4.2\npve-edk2-firmware: not correctly installed\npve-esxi-import-tools: 0.7.4\npve-firewall: 5.1.3\npve-firmware: 3.16-3\npve-ha-manager: 4.0.7\npve-i18n: 3.4.5\npve-qemu-kvm: 9.2.0-8\npve-xtermjs: 5.5.0-2\nqemu-server: 8.4.10\nsmartmontools: 7.3-pve1\nspiceterm: 3.3.1\nswtpm: 0.8.0+pve1\nvncterm: 1.8.2\nzfsutils-linux: 2.2.10-pve1\n"
+    },
+    {
+      "phase": "deb-install",
+      "result": "PASS",
+      "sha256": "ebcb88321e2455c3e56bf38a40924301d125c4882ae46a6cdea81dd2a631346a",
+      "dependencies": "ipset 7.17-1 installed\niptables 1.8.9-2 installed\nknock-control 4.0.3-2 installed\nlibpcap0.8:amd64 1.10.3-1 installed\nlibssl3:amd64 3.0.22-1~deb12u1 installed\npython3 3.11.2-1+b1 installed\n",
+      "iptables": "iptables v1.8.9 (legacy)"
+    },
+    {
+      "phase": "systemd-activation",
+      "result": "PASS",
+      "checks": [
+        "Real systemd PID 1 starts packet daemon and firewall unit",
+        "CLI issues v3 JSON and PNG; no management API"
+      ]
+    },
+    {
+      "phase": "browser-on-off",
+      "result": "PASS",
+      "checks": [
+        "Actual Chromium and Firefox ICE opens/closes real PVE HTTPS UI on 8006",
+        "Captured ON remains rejected after daemon restart"
+      ]
+    },
+    {
+      "phase": "pve-firewall-enabled",
+      "result": "PASS",
+      "status": "Status: enabled/running",
+      "checks": [
+        "Datacenter and node firewall enabled; PVEFW-INPUT hook present"
+      ]
+    },
+    {
+      "phase": "pve-firewall-on-off",
+      "result": "PASS",
+      "checks": [
+        "Actual Chromium and Firefox ICE opens/closes real PVE HTTPS UI on 8006",
+        "Captured ON remains rejected after daemon restart"
+      ]
+    },
+    {
+      "phase": "post-reboot-on-off",
+      "result": "PASS",
+      "checks": [
+        "Actual Chromium and Firefox ICE opens/closes real PVE HTTPS UI on 8006",
+        "Captured ON remains rejected after daemon restart"
+      ]
+    },
+    {
+      "phase": "reboot",
+      "result": "PASS",
+      "checks": [
+        "PVE kernel and real systemd boot",
+        "Credentials unchanged; both units autostart",
+        "PVE UI blocked until fresh ON"
+      ]
+    },
+    {
+      "phase": "reinstall",
+      "result": "PASS",
+      "checks": [
+        "Native apt reinstall preserves credentials and restarts active unit"
+      ]
+    }
+  ],
+  "scope": "Knock server installed on nested Proxmox VE host; not a Debian-only guest or chroot",
+  "limitations": [
+    "Single disposable node; no cluster or nested VM/container workload test",
+    "Classic pve-firewall tested; alternative nftables Proxmox firewall not selected",
+    "PVE UI certificate accepted only by the test probe; released clients have no HTTPS API"
+  ]
+}
