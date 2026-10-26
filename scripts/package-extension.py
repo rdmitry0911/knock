@@ -50,7 +50,7 @@ for variant in ('chromium-browser','firefox-mobile','web-app'):
         print(output)
         continue
     manifest = json.loads((source / 'manifest.json').read_text())
-    manifest['version'] = '4.0.3'
+    manifest['version'] = '4.1.0'
     manifest['icons'] = icons
     if variant == 'chromium-browser':
         manifest.update({'permissions':['storage','offscreen'],
@@ -61,7 +61,7 @@ for variant in ('chromium-browser','firefox-mobile','web-app'):
         for chromium_file in ('chromium-ice.js','offscreen.js','offscreen.html','background-firefox.js'):
             (output/chromium_file).unlink(missing_ok=True)
         # Firefox uses the same popup on desktop and Android; camera import has a full view.
-        manifest = {'manifest_version':2,'name':'__MSG_extensionName__','version':'4.0.3','default_locale':'en',
+        manifest = {'manifest_version':2,'name':'__MSG_extensionName__','version':'4.1.0','default_locale':'en',
             'description':manifest['description'],'icons':icons,'permissions':['storage'],
             'background':{'scripts':['background.js'],'type':'module','persistent':False},
             'browser_action':{'default_title':'__MSG_extensionName__','default_popup':'popup.html','default_icon':icons},

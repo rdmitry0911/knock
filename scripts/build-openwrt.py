@@ -17,7 +17,6 @@ parser.add_argument('--test-tools',action='store_true',help='Also cross-build th
 args=parser.parse_args();sdk=args.sdk.resolve()
 if not (sdk/'include/package.mk').is_file():parser.error('Expected an extracted OpenWrt SDK')
 if args.jobs<1:parser.error('--jobs must be positive')
-subprocess.run(['/usr/bin/python3',str(ROOT/'scripts/package-extension.py')],check=True)
 package=sdk/'package/knock-control'
 if package.exists():shutil.rmtree(package)
 shutil.copytree(ROOT/'packaging/openwrt',package)

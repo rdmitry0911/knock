@@ -1421,9 +1421,11 @@ static void access_ice(J *db, const char *id, const char *credential, const char
     memcpy(nonce, token + 69, 32);
     nonce[32] = 0;
     char *scope = fmt("ice:%s", id);
-    reserve_nonce_order(scope, nonce, time(NULL), id, ip, issued);
+    char target[16];
+    knc_ice_target(token, ip, target);
+    reserve_nonce_order(scope, nonce, time(NULL), id, target, issued);
     access_profile(db, !strcmp(action, "open") ? "access-open" : "access-close", id, credential,
-                   ip);
+                   target);
     free(expected);
     free(door);
     free(scope);

@@ -39,7 +39,7 @@ try {
   }
   async function action(which) {
     await page.bringToFront();await page.locator('#'+which).click();
-    await expectMessage(page,'Signed UDP knock {operation} sent. No server response was requested.',{operation:which==='open'?'ON':'OFF'});
+    await expectMessage(page,'Signed knock {operation} sent. No server response was requested.',{operation:which==='open'?'ON':'OFF'});
     return await rpc('status');
   }
   if(await reachable())throw new Error('Service reachable before ON');

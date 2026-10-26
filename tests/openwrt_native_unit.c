@@ -21,6 +21,20 @@ static int rejected;
 
 static __attribute__((noinline)) void ice_checks(J *fixture, J *profile, const char *id,
                                                  const char *ip) {
+    if (get(fixture, "ice_split_token")) {
+        const char *token = sget(fixture, "ice_split_token");
+        char *door = fmt("%s.open", id), target[16];
+        assert(knc_ice_verify(token, sget(profile, "secret"), door,
+               (unsigned)iget(profile, "revision", 1, 2147483647), ip, 1, time(NULL)));
+        assert(!knc_ice_verify(token, sget(profile, "secret"), door,
+               (unsigned)iget(profile, "revision", 1, 2147483647), "127.0.0.99", 1, time(NULL)));
+        knc_ice_target(token, ip, target);
+        assert(!strcmp(target, "127.0.0.3"));
+        for (unsigned i = 0; i < KNC_ICE_TCP_PROOF; i++)
+            assert(knc_ice_proof_port(token, (unsigned)iget(get(profile, "settings"), "base", 1024, 65280), i) ==
+                   json_object_get_int(json_object_array_get_idx(get(fixture, "ice_split_ports"), i)));
+        free(door);
+    }
     if (get(fixture, "ice_token")) {
         const char *token = sget(fixture, "ice_token");
         char *door = fmt("%s.open", id);

@@ -1,0 +1,34 @@
+{
+  "result": "PASS",
+  "version": "4.1.0",
+  "tested_date": "2026-10-26",
+  "checks": [
+    {
+      "result": "PASS",
+      "browser": "156.0.8078.4",
+      "permissions": {
+        "origins": [],
+        "permissions": [
+          "storage",
+          "offscreen"
+        ]
+      },
+      "engine": "chromium",
+      "ipv4_returned": true
+    },
+    {
+      "result": "PASS",
+      "browser": "158.0.1",
+      "ipv4_returned": true,
+      "permissions": {
+        "data_collection": [],
+        "origins": [],
+        "permissions": [
+          "storage"
+        ]
+      },
+      "engine": "firefox"
+    }
+  ],
+  "notes": "Live external IPv4 discovery from fresh browser contexts; no profile credentials loaded, no host permission requested. Public address values omitted."
+}

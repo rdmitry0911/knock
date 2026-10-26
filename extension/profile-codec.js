@@ -26,7 +26,7 @@ export function validateBundle(input) {
   if(config.ports.some(p=>p>=config.base&&p<=config.base+255)||config.seq_timeout<=protocols.length*.25)throw new Error('Check the port range and timeout');
   const extra={};
   if(input.ice_version!==undefined)extra.ice_version=integer(input.ice_version,1,1,'ice_version');
-  for(const key of ['ice_source','ice_host'])if(input[key]){const ip=input[key];if(typeof ip!=='string'||!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)||ip.split('.').some(n=>Number(n)>255||String(Number(n))!==n))throw new Error('Invalid IPv4 address');extra[key]=ip;}
+  for(const key of ['ice_source','ice_host','access_source'])if(input[key]){const ip=input[key];if(typeof ip!=='string'||!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)||ip.split('.').some(n=>Number(n)>255||String(Number(n))!==n))throw new Error('Invalid IPv4 address');extra[key]=ip;}
   if(input.stun_server!==undefined){if(typeof input.stun_server!=='string'||!/^stun:[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}:[0-9]{1,5}$/.test(input.stun_server)||Number(input.stun_server.slice(input.stun_server.lastIndexOf(':')+1))<1||Number(input.stun_server.slice(input.stun_server.lastIndexOf(':')+1))>65535)throw new Error('Invalid STUN server');extra.stun_server=input.stun_server;}
   if(input.last_ice_ms!==undefined)extra.last_ice_ms=integer(input.last_ice_ms,0,Number.MAX_SAFE_INTEGER,'last_ice_ms');
   return {...extra,format:'knock-control-client-v3',profile_id:input.profile_id,name,secret,
@@ -53,6 +53,6 @@ export function decodeEnrollment(text) {
   if(!modern&&url.origin!==compact.u)throw new Error('The QR address does not match the profile server');
   return validateBundle({format:modern?'knock-control-client-v3':'knock-control-client-v2',profile_id:compact.i,name:compact.n,server_url:compact.u,
     secret:compact.k,knock_host:compact.h,revision:compact.r,ice_version:compact.w,
-    ...Object.fromEntries(['ice_host','ice_source','stun_server'].filter(k=>compact[k]!==undefined).map(k=>[k,compact[k]])),
+    ...Object.fromEntries(['ice_host','ice_source','access_source','stun_server'].filter(k=>compact[k]!==undefined).map(k=>[k,compact[k]])),
     settings:{base:s[0],ports:s[1],idle_timeout:s[2],protocols:[...s[3]].map(p=>p==='t'?'tcp':'udp'),seq_timeout:s[4],ip_protection:!!s[5],...(s.length===7?{rules:s[6]}:{})}});
 }

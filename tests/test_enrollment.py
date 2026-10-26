@@ -53,6 +53,10 @@ class EnrollmentTests(unittest.TestCase):
             self.assertEqual(restored['settings'][key],bundle['settings'][key])
         self.assertNotIn(bundle['secret'],text.split('#')[0])
         self.assertEqual(qr_codec.decode_enrollment(json.dumps(bundle))['secret'],bundle['secret'])
+        pinned={**bundle,'ice_source':'192.0.2.10','access_source':'198.51.100.20'}
+        decoded=qr_codec.decode_enrollment(qr_codec.enrollment_url(pinned))
+        self.assertEqual(decoded['ice_source'],pinned['ice_source'])
+        self.assertEqual(decoded['access_source'],pinned['access_source'])
 
     def test_wrong_destination_and_non_enrollment_are_rejected(self):
         db,a,_=database();text=qr_codec.enrollment_url(server.export_bundle(db,a))

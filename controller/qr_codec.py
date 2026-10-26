@@ -22,7 +22,7 @@ def enrollment_url(bundle):
                     cfg['seq_timeout'],int(cfg['ip_protection'])]}
     if 'rules' in cfg: compact['s'].append(cfg['rules'])
     if 'ice_version' in bundle:compact['w']=bundle['ice_version']
-    for key in ('ice_host','ice_source','stun_server'):
+    for key in ('ice_host','ice_source','access_source','stun_server'):
         if key in bundle:compact[key]=bundle[key]
     encoded = base64.urlsafe_b64encode(json.dumps(compact,ensure_ascii=False,separators=(',',':')).encode()).decode().rstrip('=')
     return 'knock-control://import/#import='+PREFIX+encoded
@@ -48,7 +48,7 @@ def decode_enrollment(text):
         if value['v']!=(3 if modern else 2) or not isinstance(cfg,list) or len(cfg) not in (6,7) or cfg[5] not in (0,1) or not isinstance(cfg[3],str) or any(p not in 'tu' for p in cfg[3]):
             raise ValueError()
         bundle=client_bundle({'format':'knock-control-client-v3' if modern else 'knock-control-client-v2','server_url':value.get('u',''),
-            **{k:value[k] for k in ('ice_host','ice_source','stun_server') if k in value},'profile_id':value['i'],'name':value['n'],
+            **{k:value[k] for k in ('ice_host','ice_source','access_source','stun_server') if k in value},'profile_id':value['i'],'name':value['n'],
             'secret':value['k'],'knock_host':value['h'],'revision':value['r'],**({'ice_version':value['w']} if 'w' in value else {}),
             'settings':{'base':cfg[0],'ports':cfg[1],'idle_timeout':cfg[2],
                         'protocols':['tcp' if p=='t' else 'udp' for p in cfg[3]],

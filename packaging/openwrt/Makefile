@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=knock-control
-PKG_VERSION:=4.0.3
+PKG_VERSION:=4.1.0
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-or-later
 PKG_LICENSE_FILES:=COPYING

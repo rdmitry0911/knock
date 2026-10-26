@@ -136,29 +136,51 @@ def profile_id(value):
     return value
 
 
-def ice_token(bundle, action, source, *, now=None, nonce=None, issued_ms=None):
+def ice_token(bundle, action, source, *, now=None, nonce=None, issued_ms=None, target=None):
     if action not in ('open', 'close'): raise ValueError('Invalid ICE action')
     now = time.time() if now is None else now
     source = str(ipaddress.IPv4Address(source))
     nonce = secrets.token_hex(16) if nonce is None else nonce
     if not isinstance(nonce,str) or not re.fullmatch('[0-9a-f]{32}',nonce): raise ValueError('Invalid ICE nonce')
     issued_ms = int(now*1000) if issued_ms is None else integer(issued_ms,0,2**53-1,'issued_ms')
-    prefix = 'KNI1'+profile_id(bundle['profile_id'])+('O' if action=='open' else 'C')+f'{bundle["revision"]:08x}{int(now)//30:016x}{issued_ms:016x}'+nonce
+    version = 1 if target is None else 2
+    if target is not None:
+        target = ipaddress.IPv4Address(target)
+        if not 0 < int(target) >> 24 < 224: raise ValueError('Invalid access IPv4')
+    clock = f'{int(now)//30:016x}' if target is None else f'{int(now)//30:08x}{int(target):08x}'
+    prefix = 'KNI'+str(version)+profile_id(bundle['profile_id'])+('O' if action=='open' else 'C')+f'{bundle["revision"]:08x}'+clock+f'{issued_ms:016x}'+nonce
     ip = source if bundle['settings']['ip_protection'] else '-'
-    signature=hmac.new(base64.b32decode(bundle['secret']),f'knock-control:ice:v1:{prefix}:{ip}'.encode('ascii'),hashlib.sha256).hexdigest()
+    signature=hmac.new(base64.b32decode(bundle['secret']),f'knock-control:ice:v{version}:{prefix}:{ip}'.encode('ascii'),hashlib.sha256).hexdigest()
     return prefix+signature
 
 
 def verify_ice_token(bundle, token, source, *, now=None):
     now=time.time() if now is None else now
-    if not isinstance(token,str) or not re.fullmatch(r'KNI1[0-9a-f]{24}[OC][0-9a-f]{136}',token): raise ValueError('Invalid ICE token')
-    step,issued=int(token[37:53],16),int(token[53:69],16)
+    if not isinstance(token,str) or not re.fullmatch(r'KNI[12][0-9a-f]{24}[OC][0-9a-f]{136}',token): raise ValueError('Invalid ICE token')
+    target=ice_target(token,source) if token.startswith('KNI2') else None
+    step,issued=int(token[37:45 if target else 53],16),int(token[53:69],16)
     if token[4:28]!=bundle['profile_id'] or int(token[29:37],16)!=bundle['revision'] or abs(int(now)//30-step)>1 or abs(int(now*1000)-issued)>60000:
         raise ValueError('Expired or replaced ICE credential')
     action='open' if token[28]=='O' else 'close'
-    expected=ice_token(bundle,action,source,now=step*30,nonce=token[69:101],issued_ms=issued)
+    expected=ice_token(bundle,action,source,now=step*30,nonce=token[69:101],issued_ms=issued,target=target)
     if not hmac.compare_digest(token,expected): raise ValueError('Invalid ICE authentication')
     return action,token[69:101],issued
+
+
+def ice_target(token, source):
+    if not token.startswith('KNI2'): return source
+    target=ipaddress.IPv4Address(int(token[45:53],16))
+    if not 0 < int(target) >> 24 < 224: raise ValueError('Invalid access IPv4')
+    return str(target)
+
+
+def ice_proof_ports(token, base):
+    ports=[]
+    for i in range(6):
+        offset=int(token[101+i*2:103+i*2],16)%255
+        while base+1+offset in ports: offset=(offset+1)%255
+        ports.append(base+1+offset)
+    return ports
 
 
 def client_bundle(value):
@@ -182,7 +204,7 @@ def client_bundle(value):
             'secret':config['secret'],'settings':public_settings(config),'ice_version':1,
             'public_ip':str(ipaddress.IPv4Address(value['public_ip'])) if value.get('public_ip') else '',
             'revision':integer(value.get('revision',1),1,2147483647,'revision')}
-    for key in ('ice_host','ice_source'):
+    for key in ('ice_host','ice_source','access_source'):
         if value.get(key):result[key]=str(ipaddress.IPv4Address(value[key]))
     if 'stun_server' in value:
         if not isinstance(value['stun_server'],str) or not re.fullmatch(r'stun:[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}:[0-9]{1,5}',value['stun_server']):raise ValueError('Invalid STUN server')

@@ -145,6 +145,15 @@ typedef struct knocker {
 } knocker_t;
 PMList *attempts = NULL;
 
+/* Authenticated split-address requests wait for a TCP SYN sequence from the
+ * claimed access IPv4. An IP-discovery service alone cannot authorize it. */
+static struct {
+    opendoor_t *door;
+    char token[KNC_ICE_LENGTH + 1], udp_source[16], access_source[16];
+    unsigned stage;
+    time_t expires;
+} ice_pending[128];
+
 typedef struct p_attempt {
     struct p_attempt *next;
     char *filter;
@@ -528,6 +537,7 @@ void reload(int signum)
 	opendoor_t *door;
 	int res_cfg;
     knocker_t *attempt;
+    memset(ice_pending, 0, sizeof(ice_pending));
 
 	vprint("Re-reading config file: %s\n", o_cfg);
 	logprint("Re-reading config file: %s\n", o_cfg);
@@ -1042,6 +1052,19 @@ static int reserve_confirmation(const unsigned char *proof, long long step, time
     memcpy(replay_cache[free_slot].tag, proof+28, 32);
     replay_cache[free_slot].expires = (time_t)(step+2)*30 + 60;
     return 1;
+}
+
+static void dispatch_ice(opendoor_t *door, const char *source, const char *token)
+{
+    if (fork() == 0) {
+        char command[PATH_MAX], complete[PATH_MAX];
+        setsid();
+        if (parse_cmd(command, sizeof(command), door->ice_command, source) >= sizeof(command)) _exit(1);
+        int n = snprintf(complete, sizeof(complete), "%s %s", command, token);
+        if (n < 0 || (size_t)n >= sizeof(complete)) _exit(1);
+        execl("/bin/sh", "sh", "-c", complete, (char *)NULL);
+        _exit(1);
+    }
 }
 
 void refresh_otp_ports(time_t now)
@@ -1736,6 +1759,28 @@ void sniff(u_char* arg, const struct pcap_pkthdr* hdr, const u_char* packet)
 	dprint("%s %s: %s: %s:%d -> %s:%d %d bytes\n", pkt_date, pkt_time,
 			proto, srcIP, sport, dstIP, dport, hdr->len);
 
+    if (tcp && (tcp->th_flags & TH_SYN) && !(tcp->th_flags & (TH_ACK | TH_RST))) {
+        for (unsigned i = 0; i < sizeof(ice_pending) / sizeof(ice_pending[0]); i++) {
+            if (ice_pending[i].expires <= pkt_secs || strcmp(ice_pending[i].access_source, srcIP)) continue;
+            opendoor_t *door = ice_pending[i].door;
+            if (target_strcmp(dstIP, door->target) || dport <= door->otp_port_range ||
+                dport > door->otp_port_range + 255) continue;
+            if (dport != knc_ice_proof_port(ice_pending[i].token, door->otp_port_range, ice_pending[i].stage)) {
+                /* Retransmission of the last SYN is harmless. Any other SYN
+                 * in this proof range breaks its sequence. Ignoring arbitrary
+                 * in-range SYNs would let a port sweep forge a subsequence. */
+                if (ice_pending[i].stage && dport == knc_ice_proof_port(ice_pending[i].token, door->otp_port_range, ice_pending[i].stage - 1)) continue;
+                ice_pending[i].stage = dport == knc_ice_proof_port(ice_pending[i].token, door->otp_port_range, 0) ? 1 : 0;
+                continue;
+            }
+            dprint("TCP proof: %s stage %u\n", srcIP, ice_pending[i].stage);
+            if (++ice_pending[i].stage == KNC_ICE_TCP_PROOF) {
+                ice_pending[i].expires = 0;
+                dispatch_ice(door, ice_pending[i].udp_source, ice_pending[i].token);
+            }
+        }
+    }
+
     /* Attempts have a fixed deadline; noise never extends their lifetime. */
     lp = attempts;
     while(lp) {
@@ -1768,17 +1813,23 @@ void sniff(u_char* arg, const struct pcap_pkthdr* hdr, const u_char* packet)
                        dport!=door->otp_port_range || target_strcmp(dstIP,door->target) ||
                        !knc_ice_verify(token,door->seed,door->name,door->ice_revision,srcIP,door->ip_protection,pkt_secs)) continue;
                     unsigned char proof[60]={0}; uint64_t step=0;
-                    knc_hex(token+37,16,&step);
+                    knc_hex(token+37,knc_ice_split(token) ? 8 : 16,&step);
                     for(unsigned i=0;i<32;i++) { uint64_t v=0;knc_hex(token+101+i*2,2,&v);proof[28+i]=(unsigned char)v; }
                     if(!reserve_confirmation(proof,(long long)step,pkt_secs)) return;
-                    if(fork()==0) {
-                        char command[PATH_MAX],complete[PATH_MAX];
-                        setsid();
-                        if(parse_cmd(command,sizeof(command),door->ice_command,srcIP)>=sizeof(command)) _exit(1);
-                        int n=snprintf(complete,sizeof(complete),"%s %s",command,token);
-                        if(n<0 || (size_t)n>=sizeof(complete)) _exit(1);
-                        /* Do not log a still-live authentication token. */
-                        execl("/bin/sh","sh","-c",complete,(char *)NULL);_exit(1);
+                    if (knc_ice_split(token)) {
+                        for (unsigned i = 0; i < sizeof(ice_pending) / sizeof(ice_pending[0]); i++) {
+                            if (ice_pending[i].expires > pkt_secs) continue;
+                            ice_pending[i].door = door;
+                            snprintf(ice_pending[i].token, sizeof(ice_pending[i].token), "%s", token);
+                            snprintf(ice_pending[i].udp_source, sizeof(ice_pending[i].udp_source), "%s", srcIP);
+                            knc_ice_target(token, srcIP, ice_pending[i].access_source);
+                            ice_pending[i].stage = 0;
+                            ice_pending[i].expires = pkt_secs + 20;
+                            dprint("TCP proof pending: %s -> %s\n", srcIP, ice_pending[i].access_source);
+                            break;
+                        }
+                    } else {
+                        dispatch_ice(door, srcIP, token);
                     }
                     return;
                 }

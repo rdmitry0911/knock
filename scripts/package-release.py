@@ -6,11 +6,11 @@ import subprocess
 import zipfile
 root=Path(__file__).resolve().parents[1]
 subprocess.run(['/usr/bin/python3',str(root/'scripts/package-extension.py')],check=True)
-dist=root/'dist';version='4.0.3'
+dist=root/'dist';version='4.1.0'
 files=[]
 for directory in ('src','controller','extension','packaging','scripts','tests','doc'):
     for path in (root/directory).rglob('*'):
-        if path.is_file() and '__pycache__' not in path.parts and (path.suffix in ('.py','.sh','.cgi','.config','.js','.json','.html','.css','.png','.svg','.webmanifest','.LICENSE','.c','.h','.mjs','.md','.in','.1','.init','.nft','.service') or path.name=='Makefile'):
+        if path.is_file() and '__pycache__' not in path.parts and (path.suffix in ('.py','.sh','.cgi','.config','.js','.json','.html','.css','.png','.svg','.webmanifest','.LICENSE','.c','.h','.mjs','.md','.in','.1','.init','.nft','.service','.spec') or path.name in ('Makefile','knock-control')):
             files.append(path)
 for name in ('README.md','README_RU.md','COPYING','THIRD_PARTY.json','Makefile.am','configure.ac','knockd.conf','knockd.sh','ChangeLog','TODO'):
     if (root/name).is_file():files.append(root/name)
@@ -23,12 +23,16 @@ with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as archive:
     for path in (dist/'knock-control-chromium-browser.zip', firefox, dist/'knock-control-web-app.zip'):
         archive.write(path,Path(f'knock-control-{version}')/'packages'/path.name)
     openwrt = dist/'openwrt'/version
-    if not openwrt.exists():openwrt = dist/'openwrt'
     if openwrt.exists():
         for path in sorted(openwrt.rglob('*')):
             if path.is_file() and (path.suffix in ('.apk','.ipk') or path.name=='SHA256SUMS' or
                     (path.parent==openwrt and path.suffix in ('.json','.log'))):
                 archive.write(path,Path(f'knock-control-{version}')/'packages/openwrt'/path.relative_to(openwrt))
+    linux = dist/'linux'/f'{version}-1'
+    if linux.exists():
+        for path in sorted(linux.iterdir()):
+            if path.suffix in ('.deb','.rpm') or path.name.endswith('.tar.gz'):
+                archive.write(path,Path(f'knock-control-{version}')/'packages/linux'/path.name)
 artifacts=sorted([dist/'knock-control-chromium-browser.zip', firefox,
                   dist/'knock-control-web-app.zip', output])
 (dist/'SHA256SUMS').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n' for p in artifacts))

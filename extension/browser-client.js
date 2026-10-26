@@ -14,11 +14,14 @@ async function hmac(secret,message,hash='SHA-256') {
   const key=await crypto.subtle.importKey('raw',base32(secret),{name:'HMAC',hash},false,['sign']);
   return new Uint8Array(await crypto.subtle.sign('HMAC',key,message));
 }
-export async function makeIceToken(bundle,action,source,now=Date.now(),nonce=crypto.getRandomValues(new Uint8Array(16)),issued=now) {
+export async function makeIceToken(bundle,action,source,now=Date.now(),nonce=crypto.getRandomValues(new Uint8Array(16)),issued=now,target) {
   if(!['open','close'].includes(action)||typeof source!=='string'||!/^\d{1,3}(\.\d{1,3}){3}$/.test(source)||source.split('.').some(n=>Number(n)>255)||!(nonce instanceof Uint8Array)||nonce.length!==16)throw new Error('Invalid ICE request');
   const hex=(n,size)=>BigInt(n).toString(16).padStart(size,'0');
-  const prefix='KNI1'+bundle.profile_id+(action==='open'?'O':'C')+hex(bundle.revision,8)+hex(Math.floor(now/30000),16)+hex(Math.floor(issued),16)+toHex(nonce);
-  return prefix+toHex(await hmac(bundle.secret,encoder.encode('knock-control:ice:v1:'+prefix+':'+(bundle.settings.ip_protection?source:'-'))));
+  if(target!==undefined&&(typeof target!=='string'||!/^\d{1,3}(\.\d{1,3}){3}$/.test(target)||target.split('.').some(n=>String(Number(n))!==n||Number(n)>255)||Number(target.split('.')[0])<1||Number(target.split('.')[0])>=224))throw new Error('Invalid access IPv4');
+  const version=target===undefined?1:2;
+  const clock=version===1?hex(Math.floor(now/30000),16):hex(Math.floor(now/30000),8)+target.split('.').map(n=>hex(Number(n),2)).join('');
+  const prefix='KNI'+version+bundle.profile_id+(action==='open'?'O':'C')+hex(bundle.revision,8)+clock+hex(Math.floor(issued),16)+toHex(nonce);
+  return prefix+toHex(await hmac(bundle.secret,encoder.encode('knock-control:ice:v'+version+':'+prefix+':'+(bundle.settings.ip_protection?source:'-'))));
 }
 async function readStore() {
   let value;
@@ -60,7 +63,7 @@ export async function dispatch(message) {
   const bundle=selected&&store.profiles[selected]?validateBundle(store.profiles[selected]):null;
   if(!bundle)throw new Error('Import a server-issued profile first');
   const now=Date.now(),issued=Math.max(now,(bundle.last_ice_ms??0)+1);
-  const token=await makeIceToken(bundle,message.operation,message.source,now,crypto.getRandomValues(new Uint8Array(16)),issued);
+  const token=await makeIceToken(bundle,message.operation,message.source,now,crypto.getRandomValues(new Uint8Array(16)),issued,message.target);
   bundle.last_ice_ms=issued;store.profiles[selected]=bundle;await writeStore(store);
   return {ok:true,token,host:bundle.ice_host||bundle.knock_host,port:bundle.settings.base,profile:safe(bundle)};
 }

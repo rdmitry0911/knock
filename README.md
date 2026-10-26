@@ -1,6 +1,6 @@
 # Knock Control 4
 
-[Download v4.0.3](https://github.com/rdmitry0911/knock/releases/tag/v4.0.3): Mozilla-signed Firefox XPI, Chromium ZIP, Linux DEB/RPM, OpenWrt APKs and sources. [Linux packages](doc/LINUX_PACKAGES.md). [Russian guide](README_RU.md).
+[Download v4.1.0](https://github.com/rdmitry0911/knock/releases/tag/v4.1.0): Mozilla-signed Firefox XPI, Chromium ZIP, Linux DEB/RPM, OpenWrt APKs and sources. [Linux packages](doc/LINUX_PACKAGES.md). [Russian guide](README_RU.md).
 
 Knock Control provides a preconfigured emergency entrance (a controlled
 "backdoor") when the usual access path, such as a VPN, fails. It temporarily
@@ -21,10 +21,15 @@ sent, not that the firewall acknowledged it.
 ON/OFF uses HMAC-signed WebRTC ICE checks captured by libpcap on a closed UDP
 port. **No HTTPS API, port 8443, TLS certificate, management listener or local
 helper is needed.** Closing the popup does not abort the extension's transmission.
-STUN discovers the public IPv4 for each command; it receives no profile secret or
-signed command. WebRTC/UDP must be available and use the same public source IPv4
-as the protected service. Administrators may supply `ice_host`, `ice_source` and
-`stun_server` in the imported JSON instead of the defaults.
+STUN discovers the UDP public IPv4 for each command; an HTTPS IP echo discovers
+the TCP access IPv4. Neither discovery service receives a profile secret or
+signed command. If the addresses differ, a signed KNI2 request waits for a
+nonce-specific TCP SYN proof from the access address before changing its grant.
+Those TCP ports also stay closed. An IP echo's answer alone cannot open access.
+Both servers and clients need 4.1.0 for split-address operation; existing profiles
+remain usable. The same-address KNI1 transport remains compatible with older
+servers. Administrators may supply `ice_host`, `ice_source`, `access_source` and
+`stun_server` in JSON instead of automatic discovery. [Protocol](doc/SPLIT_IP_TRANSPORT.md).
 
 The server generates credentials with their own rules and traffic-based idle
 timeouts. Two addresses sharing one credential have independent ON/OFF grants;
@@ -38,9 +43,9 @@ The standalone TCP/UDP CLI remains available.
 OpenWrt uses native C, procd and firewall4/nftables. Configuration is
 `/etc/config/knock-control`; no Python, dedicated uhttpd or web application is
 installed. Linux uses the Python administrator CLI, systemd and iptables/ipset.
-For Proxmox, use Linux package revision **4.0.3-2**: full VMs with PVE 8.4.21
-and 9.2.21 passed ON/OFF, classic firewall integration, reboot and reinstall.
-[Proxmox verification and the revision 1 fix](doc/PROXMOX_TESTING.md).
+Linux package **4.1.0-1** retains the iptables-legacy capability correction.
+The historical 4.0.3-2 package passed full PVE 8.4.21 and 9.2.21 VM checks;
+[the Proxmox report](doc/PROXMOX_TESTING.md) describes that test's exact scope.
 An upgrade stops/disables the retired API and removes its unit/CGI. Existing
 credentials and replay journals are preserved; old ICE-enabled JSON/QR profiles
 can be imported. New v3 profiles and `knock-control://import/` QR payloads contain
@@ -56,7 +61,7 @@ Ten packaged languages follow the browser language: English (default), Russian,
 German, French, Spanish, Brazilian Portuguese, Simplified Chinese, Japanese,
 Arabic (RTL) and Hindi. The icon comes from the owner's Mozilla profile.
 
-See [installation](doc/BROWSER_INSTALLATION_RU.md), [v4 verification](doc/RELEASE_4.0.3.md)
+See [installation](doc/BROWSER_INSTALLATION_RU.md), [4.1.0 verification](doc/RELEASE_4.1.0.md)
 and the Russian guide for server setup, local administration and migration.
 
 Copyright (c) 2004, Judd Vinet <jvinet@zeroflux.org>

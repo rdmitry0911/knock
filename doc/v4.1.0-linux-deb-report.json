@@ -1,0 +1,24 @@
+{
+  "result": "PASS",
+  "package_format": "deb",
+  "package": "knock-control_4.1.0-1_amd64.deb",
+  "sha256": "f77e103b67e63281dee2fb99400fd82030d049b5362cdce471abe9d9043da6e7",
+  "distribution": "PRETTY_NAME=\"Ubuntu 22.04 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"22.04\"\nVERSION=\"22.04 (Jammy Jellyfish)\"\nVERSION_CODENAME=jammy\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=jammy\n",
+  "architecture": "x86_64",
+  "checks": [
+    "Native package manager installed package and ran lifecycle scripts",
+    "No automatic credentials, service enablement, HTTP API or management listener",
+    "Installed CLI initializes/issues v3 JSON and QR PNG; generated daemon config validates",
+    "Installed systemd units pass systemd-analyze verify",
+    "Real installed packet daemon -> installed Python callback -> kernel iptables/ipset ON/OFF",
+    "Captured ON replay rejected after daemon restart",
+    "Reinstall and removal preserve credentials, revisions and durable replay journal",
+    "Removal retains firewall protection; reinstall uses retained credentials"
+  ],
+  "limitations": [
+    "Disposable chroot and isolated kernel network namespace; not a booted VM",
+    "Systemd units verified statically; systemd PID 1 and reboot not exercised"
+  ],
+  "version": "4.1.0",
+  "tested_date": "2026-10-26"
+}

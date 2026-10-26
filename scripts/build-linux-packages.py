@@ -8,8 +8,8 @@ import tarfile
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '4.0.3'
-RELEASE = '2'
+VERSION = '4.1.0'
+RELEASE = '1'
 
 
 def run(*args, **kwargs):

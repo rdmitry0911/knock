@@ -21,7 +21,7 @@ import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import atomic_write, integer, profile_id, public_settings, read_json, settings
-from common import verify_ice_token
+from common import verify_ice_token, ice_target
 import rules as named_rules
 
 CONFIG = Path('/etc/knock-control/settings.json')
@@ -230,6 +230,7 @@ def access_ice(ident, tag, source, token):
         raise ValueError('ICE credential disabled, revoked or replaced')
     bundle={'profile_id':ident,'secret':profile['secret'],'revision':profile['revision'],'settings':profile['settings']}
     action,nonce,issued=verify_ice_token(bundle,token,source)
+    target=ice_target(token,source)
     now=int(time.time());REPLAYS.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
     with sqlite3.connect(REPLAYS,timeout=5) as connection:
         os.chmod(REPLAYS,0o600)
@@ -240,9 +241,9 @@ def access_ice(ident, tag, source, token):
         if connection.execute('SELECT count(*) FROM nonces').fetchone()[0]>=10000:raise ValueError('Replay capacity exceeded')
         try:connection.execute('INSERT INTO nonces VALUES(?,?,?)',('ice:'+ident,nonce,now+121))
         except sqlite3.IntegrityError:raise ValueError('ICE replay rejected') from None
-        result=connection.execute('INSERT INTO ice_order VALUES(?,?,?,?) ON CONFLICT(profile,source) DO UPDATE SET issued=excluded.issued,expires=excluded.expires WHERE ice_order.issued < excluded.issued',(ident,source,issued,now+121))
+        result=connection.execute('INSERT INTO ice_order VALUES(?,?,?,?) ON CONFLICT(profile,source) DO UPDATE SET issued=excluded.issued,expires=excluded.expires WHERE ice_order.issued < excluded.issued',(ident,target,issued,now+121))
         if result.rowcount!=1:raise ValueError('Out-of-order ICE command rejected')
-    return access('access-'+action,ident,tag,source)
+    return access('access-'+action,ident,tag,target)
 
 
 

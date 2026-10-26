@@ -1,0 +1,13 @@
+{
+  "result": "PASS",
+  "version": "4.1.0",
+  "tested_date": "2026-10-26",
+  "negative_control": "Pre-hardening development binary failed: SYN sweep forged the TCP proof",
+  "final_binary": "Strict ordered proof passed the same regression in the full browser/kernel test",
+  "attack_packets": 2040,
+  "checks": [
+    "Authenticated request with unrelated access address does not grant access",
+    "Eight complete TCP port sweeps cannot manufacture a proof as a subsequence",
+    "TCP proof alone and authenticated UDP alone cannot authorize split-address access"
+  ]
+}

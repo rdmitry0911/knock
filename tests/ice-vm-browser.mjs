@@ -17,7 +17,21 @@ try {
   const page=await browser.newPage();await page.goto('http://127.0.0.1:'+server.address().port+'/');
   for await(const line of readline.createInterface({input:process.stdin})) {
     const q=JSON.parse(line);if(q.stop)break;
-    const result=await page.evaluate(async q=>{const {makeIceToken}=await import('./browser-client.js'),{sendIce}=await import('./ice-client.js');const token=q.token??await makeIceToken(q.bundle,q.action,q.source??'10.0.2.2');await sendIce(q.host,q.port,token);return {ok:true,token};},q);
+    const result=await page.evaluate(async q=>{
+      if(q.op==='proof') {
+        const pending=[];
+        for(let pass=0;pass<2;pass++)for(const port of q.ports) {
+          const control=new AbortController(),timer=setTimeout(()=>control.abort(),650);
+          pending.push(fetch(`https://${q.host}:${port}/`,{method:'HEAD',mode:'cors',credentials:'omit',redirect:'error',signal:control.signal}).catch(()=>{}).finally(()=>clearTimeout(timer)));
+          await new Promise(r=>setTimeout(r,180));
+        }
+        await Promise.allSettled(pending);return {ok:true};
+      }
+      const {makeIceToken}=await import('./browser-client.js'),{sendIce}=await import('./ice-client.js');
+      const source=q.source??'10.0.2.2',token=q.token??await makeIceToken(q.bundle,q.action,source,Date.now(),crypto.getRandomValues(new Uint8Array(16)),Date.now(),q.op==='prepare'?source:undefined);
+      if(q.op!=='prepare')await sendIce(q.host,q.port,token);
+      return {ok:true,token};
+    },q);
     console.log(JSON.stringify(result));
   }
 } finally {await browser.close();await new Promise(r=>server.close(r));}

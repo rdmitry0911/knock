@@ -137,9 +137,6 @@
   "m_8aff9210": {
     "message": "Serverzugriff"
   },
-  "m_870ac6d5": {
-    "message": "Signierter UDP-Knock {operation} gesendet. Keine Serverantwort angefordert."
-  },
   "m_ca9e287a": {
     "message": "TCP-Ports oder benannte Regeln erforderlich"
   },
@@ -214,5 +211,11 @@
   },
   "m_3f9b9f70": {
     "message": "Bitten Sie den Administrator um ein Profil mit der IPv4-Adresse des Knock-Servers."
+  },
+  "m_b7366f50": {
+    "message": "Signierter Knock {operation} für {ip} gesendet. Keine Serverantwort angefordert."
+  },
+  "m_3ef73d82": {
+    "message": "Die IPv4-Adresse für den TCP-Zugriff konnte nicht ermittelt werden. Internetverbindung prüfen und erneut versuchen."
   }
 }

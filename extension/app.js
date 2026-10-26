@@ -35,8 +35,8 @@ document.querySelector('#delete-profile').addEventListener('click',()=>busy(asyn
 }));
 for(const action of ['open','close'])document.querySelector('#'+action).addEventListener('click',()=>busy(async()=>{
   message.textContent=action==='open'?t('Enabling access…'):t('Disabling access…');
-  await request(action);await load();
-  message.textContent=t('Signed UDP knock {operation} sent. No server response was requested.',{operation:action==='open'?'ON':'OFF'});
+  const result=await request(action);await load();
+  message.textContent=t('Signed knock {operation} sent for {ip}. No server response was requested.',{operation:action==='open'?'ON':'OFF',ip:result.access_source});
 }));
 document.querySelector('#install-hint').hidden=!!api?.runtime?.id;
 // Remove enrollment secrets before any asynchronous work.

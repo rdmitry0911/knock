@@ -92,7 +92,7 @@ with tempfile.TemporaryDirectory(prefix='knock-signed-firefox-') as temporary:
                 'Extension active and signature valid after restarting Firefox with the same profile'],
             'before_restart': before, 'after_restart': after,
             'installation': 'Geckodriver permanent addon installation; no signature bypass or temporary install',
-            'scope': 'Installation/signature/persistence test; application functionality covered by browser and Android tests'}
+            'scope': 'Installation/signature/persistence test; transport functionality is verified separately'}
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps(report), flush=True)

@@ -96,12 +96,13 @@ with tempfile.TemporaryDirectory(prefix='knock-openwrt-vm-') as directory:
             if args.upgrade_from:
                 copy(args.upgrade_from,'/tmp/knock-control-old.apk')
                 remote('apk update && apk add --allow-untrusted /tmp/knock-control-old.apk',timeout=180)
-                ctl('init','--public-host','127.0.0.1','--interface','eth1','--api-port','8443')
+                legacy_api=remote('test -x /etc/init.d/knock-control-api',check=False).returncode==0
+                ctl('init','--public-host','127.0.0.1','--interface','eth1',*(['--api-port','8443'] if legacy_api else []))
                 issued=ctl('issue','--name','Preserved profile','--ports',service_port,'--idle-timeout','10','--out','/root/old.json')
                 ctl('activate');time.sleep(1)
                 previous=json.loads(remote('cat /root/old.json').stdout)
                 listeners=remote('cat /proc/net/tcp /proc/net/tcp6').stdout
-                assert any(int(row.split()[1].split(':')[1],16)==8443 and row.split()[3]=='0A' for row in listeners.splitlines() if len(row.split())>3 and ':' in row.split()[1]),'Old API not running before upgrade'
+                if legacy_api:assert any(int(row.split()[1].split(':')[1],16)==8443 and row.split()[3]=='0A' for row in listeners.splitlines() if len(row.split())>3 and ':' in row.split()[1]),'Old API not running before upgrade'
             copy(args.package,'/tmp/knock-control.apk')
             install=remote('apk update && apk add --allow-untrusted /tmp/knock-control.apk',timeout=180)
             (work/'install.log').write_text(install.stdout+install.stderr)
@@ -119,7 +120,7 @@ with tempfile.TemporaryDirectory(prefix='knock-openwrt-vm-') as directory:
                 ctl('export',issued['profile_id'],'--out','/root/current.json')
                 current=json.loads(remote('cat /root/current.json').stdout)
                 assert current['secret']==previous['secret'] and current['revision']==previous['revision']
-                record({'phase':'upgrade','result':'PASS','checks':['Active HTTPS API stopped and its init/CGI removed','Credential secret and revision preserved','Existing v2 profiles remain usable with new ICE client']})
+                record({'phase':'upgrade','result':'PASS','from':args.upgrade_from.name,'checks':['Legacy API stopped and removed' if legacy_api else 'API absent before and after upgrade','Credential secret and revision preserved','Existing issued profiles remain usable with new ICE client']})
             listeners=remote('cat /proc/net/tcp /proc/net/tcp6').stdout
             assert not any(int(row.split()[1].split(':')[1],16)==8443 and row.split()[3]=='0A' for row in listeners.splitlines() if len(row.split())>3 and ':' in row.split()[1])
             assert remote("uci -q get knock-control.main.api_port",check=False).returncode!=0
@@ -146,7 +147,7 @@ with tempfile.TemporaryDirectory(prefix='knock-openwrt-vm-') as directory:
             assert remote('sha256sum /etc/config/knock-control').stdout==before
             remote('fw4 check')
             record({'phase':'reinstall','result':'PASS','checks':['Credentials survive removal and reinstall','API remains absent']})
-            report={'result':'PASS','version':'4.0.3','image':args.image.name,'image_sha256':hashlib.sha256(args.image.read_bytes()).hexdigest(),'architecture':'x86_64','virtualization':'QEMU KVM','phases':results}
+            report={'result':'PASS','version':'4.1.0','image':args.image.name,'image_sha256':hashlib.sha256(args.image.read_bytes()).hexdigest(),'architecture':'x86_64','virtualization':'QEMU KVM','phases':results}
             args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n')
             print('PASS: '+str(args.report),flush=True)
         except Exception:

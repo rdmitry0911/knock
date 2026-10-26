@@ -1,15 +1,15 @@
 # Установка расширений и подпись Firefox
 
-В [релизе v4.0.3](https://github.com/rdmitry0911/knock/releases/tag/v4.0.3)
-доступен один [подписанный Mozilla XPI для Firefox](https://github.com/rdmitry0911/knock/releases/download/v4.0.3/knock-control-firefox-4.0.3.xpi)
+В [релизе v4.1.0](https://github.com/rdmitry0911/knock/releases/tag/v4.1.0)
+доступен один [подписанный Mozilla XPI для Firefox](https://github.com/rdmitry0911/knock/releases/download/v4.1.0/knock-control-firefox-4.1.0.xpi)
 на компьютере и Android. Постоянная установка и сохранение после перезапуска
 проверены в официальном Firefox Stable 158.0.1 для Linux при включённой проверке
-подписи; неподписанный архив отклоняется. [Отчёт](v4-firefox-signature-report.json).
+подписи; неподписанный архив отклоняется. [Отчёт 4.1.0](v4.1.0-firefox-signature-report.json).
 
 | Браузер | Как установить текущую сборку |
 |---|---|
-| Firefox на компьютере | Скачайте `knock-control-firefox-4.0.3.xpi`; установите через `about:addons` → шестерёнка → «Установить дополнение из файла» |
-| Firefox Android 142+ | Тот же `knock-control-firefox-4.0.3.xpi` через установку из файла (порядок ниже) либо веб-приложение |
+| Firefox на компьютере | Скачайте `knock-control-firefox-4.1.0.xpi`; установите через `about:addons` → шестерёнка → «Установить дополнение из файла» |
+| Firefox Android 142+ | Тот же `knock-control-firefox-4.1.0.xpi` через установку из файла (порядок ниже) либо веб-приложение |
 | Chrome/Chromium/Edge на компьютере | Распаковать `knock-control-chromium-browser.zip`, открыть `chrome://extensions` или `edge://extensions`, включить режим разработчика, выбрать «Загрузить распакованное расширение» и папку с `manifest.json` |
 | Chrome Android, браузеры iPhone/iPad | Отдельное статическое веб-приложение на доверенном HTTPS-хостинге, предварительно сохранённое |
 

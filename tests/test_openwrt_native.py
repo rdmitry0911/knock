@@ -69,6 +69,8 @@ class NativeOpenWrt(unittest.TestCase):
             profile=db['profiles'][ident];cfg=server.config_for(db,profile)
             ip='127.0.0.2';now=time.time();nonce=secrets.token_bytes(16)
             fixture={'db':db,'id':ident,'ip':ip,'ice_token':common.ice_token(server.export_bundle(db,ident),'open',ip,now=now)}
+            fixture['ice_split_token']=common.ice_token(server.export_bundle(db,ident),'open',ip,target='127.0.0.3',now=now)
+            fixture['ice_split_ports']=common.ice_proof_ports(fixture['ice_split_token'],cfg['base'])
             (root/'fixture.json').write_text(json.dumps(fixture))
             subprocess.run([os.environ['KNOCK_NATIVE_UNIT'],directory,str(root/'fixture.json')],check=True)
             exported=json.loads((root/'profile.json').read_text())

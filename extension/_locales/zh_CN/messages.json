@@ -137,9 +137,6 @@
   "m_8aff9210": {
     "message": "服务器访问"
   },
-  "m_870ac6d5": {
-    "message": "已发送签名 UDP 敲门 {operation}，未请求服务器响应。"
-  },
   "m_ca9e287a": {
     "message": "需要 TCP 端口或命名规则"
   },
@@ -214,5 +211,11 @@
   },
   "m_3f9b9f70": {
     "message": "请向管理员索取包含 knock 服务器 IPv4 地址的配置。"
+  },
+  "m_b7366f50": {
+    "message": "已为 {ip} 发送签名敲门 {operation}，未请求服务器响应。"
+  },
+  "m_3ef73d82": {
+    "message": "无法确定 TCP 访问的 IPv4 地址。请检查网络连接并重试。"
   }
 }

@@ -15,6 +15,36 @@ from test_controller import database,ROOT
 
 
 class IceTests(unittest.TestCase):
+    def test_split_address_token_matches_browser_and_authenticates_target(self):
+        db,ident,_=database();bundle=server.export_bundle(db,ident);now=1700000000
+        token=common.ice_token(bundle,'open','192.0.2.7',target='198.51.100.9',now=now,nonce='00'*16)
+        codec='data:text/javascript;base64,'+base64.b64encode((ROOT/'extension/profile-codec.js').read_bytes()).decode()
+        client='data:text/javascript;base64,'+base64.b64encode((ROOT/'extension/browser-client.js').read_text().replace("'./profile-codec.js'",json.dumps(codec)).encode()).decode()
+        ice='data:text/javascript;base64,'+base64.b64encode((ROOT/'extension/ice-client.js').read_bytes()).decode()
+        script='import {webcrypto} from "node:crypto";globalThis.crypto=webcrypto;const {makeIceToken}=await import('+json.dumps(client)+');const {tcpProofPorts}=await import('+json.dumps(ice)+');let s="";for await(const c of process.stdin)s+=c;const b=JSON.parse(s),token=await makeIceToken(b,"open","192.0.2.7",1700000000000,new Uint8Array(16),1700000000000,"198.51.100.9");process.stdout.write(JSON.stringify({token,ports:tcpProofPorts(token,b.settings.base)}));'
+        result=json.loads(subprocess.run(['node','--input-type=module','-e',script],input=json.dumps(bundle),text=True,capture_output=True,check=True).stdout)
+        self.assertEqual(result['token'],token);self.assertEqual(len(token),165)
+        self.assertEqual(result['ports'],common.ice_proof_ports(token,bundle['settings']['base']))
+        self.assertEqual(len(set(result['ports'])),6)
+        self.assertEqual(common.ice_target(token,'192.0.2.7'),'198.51.100.9')
+        self.assertEqual(common.verify_ice_token(bundle,token,'192.0.2.7',now=now)[0],'open')
+        for bad,source in ((token,'192.0.2.8'),(token[:45]+'c633640a'+token[53:],'192.0.2.7')):
+            with self.assertRaises(ValueError):common.verify_ice_token(bundle,bad,source,now=now)
+        for target in ('0.0.0.0','224.0.0.1','255.255.255.255'):
+            with self.assertRaises(ValueError):common.ice_token(bundle,'open','192.0.2.7',target=target)
+
+    def test_split_commands_are_ordered_by_access_ip_across_udp_changes(self):
+        db,ident,_=database();bundle=server.export_bundle(db,ident);now=time.time();stamp=int(now*1000);tag=server.credential_tag(db['profiles'][ident])
+        with tempfile.TemporaryDirectory() as temporary,patch.object(server,'load',return_value=db),patch.object(server,'REPLAYS',Path(temporary)/'replay.db'),patch.object(server,'access') as access:
+            def send(source,target,action,issued):
+                token=common.ice_token(bundle,action,source,target=target,now=now,issued_ms=issued)
+                server.access_ice(ident,tag,source,token)
+            send('192.0.2.1','198.51.100.8','open',stamp-2)
+            send('192.0.2.2','198.51.100.8','close',stamp)
+            with self.assertRaises(ValueError):send('192.0.2.1','198.51.100.8','open',stamp-1)
+            send('192.0.2.1','198.51.100.9','open',stamp-1)
+            self.assertEqual([call.args[-1] for call in access.call_args_list],['198.51.100.8','198.51.100.8','198.51.100.9'])
+
     def test_queued_command_keeps_requested_profile_when_selection_changes(self):
         db,alice,bob=database()
         bundles=[server.export_bundle(db,ident) for ident in (alice,bob)]

@@ -119,7 +119,7 @@ def reachable():
     finally:
         request('POST','/url',{'url':'about:blank'});switch(client_handle)
 def action(which):
-    switch(client_handle);click('#'+which);message('Signed UDP knock {operation} sent. No server response was requested.',{'operation':'ON' if which=='open' else 'OFF'});return rpc('status')
+    switch(client_handle);click('#'+which);message('Signed knock {operation} sent. No server response was requested.',{'operation':'ON' if which=='open' else 'OFF'});return rpc('status')
 
 assert not granted() and not reachable(),'Service already open before ON'
 before=rpc('close-web')

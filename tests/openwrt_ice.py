@@ -5,8 +5,11 @@ from pathlib import Path
 import socket
 import subprocess
 import time
+import sys
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'controller'))
+from common import ice_proof_ports
 
 
 def check_ice(remote,ctl,qmp_path,service_port,echo_ok):
@@ -41,13 +44,29 @@ def check_ice(remote,ctl,qmp_path,service_port,echo_ok):
             node=os.environ.get('NODE_BINARY','node')
             process=subprocess.Popen([node,str(ROOT/'tests/ice-vm-browser.mjs'),engine],stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True)
             try:
-                def send(action='open',token=None):
-                    process.stdin.write(json.dumps({'bundle':bundle,'action':action,'host':bind,'port':port,'source':bind,**({'token':token} if token else {})})+'\n');process.stdin.flush()
-                    line=process.stdout.readline();assert line,'Browser transport exited';return json.loads(line)['token']
-                captured=send();assert granted() and echo_ok(),engine+' ICE ON failed'
-                send('close');assert not granted() and not echo_ok(),engine+' ICE OFF failed'
-                remote('/etc/init.d/knock-control restart');time.sleep(.3)
-                send(token=captured);assert not granted(),engine+' replay reopened access after restart'
+                def rpc(value):
+                    process.stdin.write(json.dumps(value)+'\n');process.stdin.flush()
+                    line=process.stdout.readline();assert line,'Browser transport exited';return json.loads(line)
+                def send(action='open',token=None,split=False):
+                    value={'bundle':bundle,'action':action,'host':bind,'port':port,'source':bind}
+                    if split and token is None:token=rpc({**value,'op':'prepare'})['token']
+                    token=rpc({**value,**({'token':token} if token else {})})['token']
+                    if token.startswith('KNI2'):
+                        forwards=[]
+                        try:
+                            for guest_port in ice_proof_ports(token,base):
+                                with socket.socket() as allocation:allocation.bind((bind,0));host_port=allocation.getsockname()[1]
+                                assert not command('human-monitor-command',{'command-line':f'hostfwd_add wan tcp:{bind}:{host_port}-:{guest_port}'})
+                                forwards.append(host_port)
+                            rpc({'op':'proof','host':bind,'ports':forwards})
+                        finally:
+                            for host_port in forwards:command('human-monitor-command',{'command-line':f'hostfwd_remove wan tcp:{bind}:{host_port}'})
+                    return token
+                for split in (False,True):
+                    captured=send(split=split);assert granted() and echo_ok(),engine+' ICE ON failed'
+                    send('close',split=split);assert not granted() and not echo_ok(),engine+' ICE OFF failed'
+                    remote('/etc/init.d/knock-control restart');time.sleep(.3)
+                    send(token=captured);assert not granted(),engine+' replay reopened access after restart'
             finally:
                 if process.poll() is None:
                     process.stdin.write('{"stop":true}\n');process.stdin.flush()
@@ -56,4 +75,5 @@ def check_ice(remote,ctl,qmp_path,service_port,echo_ok):
                     except subprocess.TimeoutExpired:process.terminate();process.wait(timeout=5)
     return ['real Chromium and Firefox ICE over WAN UDP forwarding without a management service',
             'installed daemon + C controller + nftables ON/OFF; no UDP listener on knock port',
-            'captured ICE ON remains rejected after daemon restart by durable SQLite journal']
+            'captured ICE ON remains rejected after daemon restart by durable SQLite journal',
+            'KNI1 and KNI2 TCP-proof transport both tested; QEMU maps nonce-specific TCP proof ports']

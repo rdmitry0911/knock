@@ -1,0 +1,37 @@
+{
+  "result": "PASS",
+  "browser": "Official Mozilla Firefox release",
+  "browser_version": "158.0.1",
+  "platform": "Linux x86_64",
+  "xpi_sha256": "9a9d9047889d301931c532a57f208eab4f68713911638fd7eabb330e2124e4d3",
+  "checks": [
+    "Signature enforcement enabled",
+    "Unsigned XPI rejected for permanent installation",
+    "Mozilla-signed browser-only XPI permanently installed",
+    "Extension active and signature valid after restarting Firefox with the same profile"
+  ],
+  "before_restart": {
+    "appDisabled": false,
+    "expectedSignedState": 2,
+    "id": "knock-control-mobile@local",
+    "isActive": true,
+    "signedState": 2,
+    "temporarilyInstalled": false,
+    "userDisabled": false,
+    "version": "4.1.0"
+  },
+  "after_restart": {
+    "appDisabled": false,
+    "expectedSignedState": 2,
+    "id": "knock-control-mobile@local",
+    "isActive": true,
+    "signedState": 2,
+    "temporarilyInstalled": false,
+    "userDisabled": false,
+    "version": "4.1.0"
+  },
+  "installation": "Geckodriver permanent addon installation; no signature bypass or temporary install",
+  "scope": "Stock desktop Firefox permanent signature/install/restart test; transport tested separately. No new Android emulator run in this release.",
+  "version": "4.1.0",
+  "tested_date": "2026-10-26"
+}

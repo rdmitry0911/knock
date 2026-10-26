@@ -137,9 +137,6 @@
   "m_8aff9210": {
     "message": "Acesso ao servidor"
   },
-  "m_870ac6d5": {
-    "message": "Knock UDP assinado {operation} enviado. Nenhuma resposta do servidor foi solicitada."
-  },
   "m_ca9e287a": {
     "message": "São necessárias portas TCP ou regras nomeadas"
   },
@@ -214,5 +211,11 @@
   },
   "m_3f9b9f70": {
     "message": "Peça ao administrador um perfil com o endereço IPv4 do servidor knock."
+  },
+  "m_b7366f50": {
+    "message": "Knock assinado {operation} enviado para {ip}. Nenhuma resposta do servidor foi solicitada."
+  },
+  "m_3ef73d82": {
+    "message": "Não foi possível determinar o IPv4 para acesso TCP. Verifique a conexão com a Internet e tente novamente."
   }
 }

@@ -137,9 +137,6 @@
   "m_8aff9210": {
     "message": "Server access"
   },
-  "m_870ac6d5": {
-    "message": "Signed UDP knock {operation} sent. No server response was requested."
-  },
   "m_ca9e287a": {
     "message": "TCP ports or named rules are required"
   },
@@ -214,5 +211,11 @@
   },
   "m_3f9b9f70": {
     "message": "Ask the administrator for a profile with the knock server IPv4 address."
+  },
+  "m_b7366f50": {
+    "message": "Signed knock {operation} sent for {ip}. No server response was requested."
+  },
+  "m_3ef73d82": {
+    "message": "Cannot discover the TCP access IPv4. Check Internet access and retry."
   }
 }

@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory(prefix='ice-firefox-driver-') as temporary:
               const watch=owner=>{const original=owner.fetch.bind(owner);owner.fetch=(input,...args)=>{if(String(input?.url??input).includes('/v1/control'))owner.iceApiRequests=(owner.iceApiRequests??0)+1;return original(input,...args);};};
               browser.runtime.getBackgroundPage().then(bg=>{bg.iceApiRequests=0;watch(bg);done(true);});
             """,'args':[]})
-            def api_count():return request('POST',base+'/execute/async',{'script':'const done=arguments[arguments.length-1];browser.runtime.getBackgroundPage().then(bg=>done(bg.iceApiRequests));','args':[]})
+            def api_count():return request('POST',base+'/execute/async',{'script':'const done=arguments[arguments.length-1];browser.runtime.getBackgroundPage().then(bg=>done(bg.iceApiRequests??0));','args':[]})
             print(json.dumps({'ready':True}),flush=True)
             for line in sys.stdin:
                 q=json.loads(line)
@@ -60,8 +60,8 @@ with tempfile.TemporaryDirectory(prefix='ice-firefox-driver-') as temporary:
                     if q['op'] in ('on','off','on-detached','off-detached'):
                         action='on' if q['op'].startswith('on') else 'off';request('POST',base+'/element/'+element('#open' if action=='on' else '#close')+'/click',{})
                         if q['op'].endswith('-detached'):
-                            time.sleep(.1);request('POST',base+'/url',{'url':'about:blank'});time.sleep(5.5);request('POST',base+'/url',{'url':f'moz-extension://{UUID}/popup.html'});message('Press ON')
-                        else:message('UDP knock '+('ON' if action=='on' else 'OFF')+' sent')
+                            time.sleep(.1);request('POST',base+'/url',{'url':'about:blank'});time.sleep(8.5 if config.get('split') else 5.5);request('POST',base+'/url',{'url':f'moz-extension://{UUID}/popup.html'});message('Press ON')
+                        else:message('knock '+('ON' if action=='on' else 'OFF')+' sent')
                         result={'sent':True,'apiRequests':api_count(),'errors':[],'debug':[]}
                     elif q['op']=='tcp':
                         try:
